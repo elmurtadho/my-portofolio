@@ -1,0 +1,649 @@
+{
+  ".data/portfolio.json": {
+    "summary": "Berkas penyimpanan basis data lokal berformat JSON untuk seluruh entitas portofolio termasuk profil, keahlian, karya, dan kontak."
+  },
+  ".gitattributes": {
+    "summary": "Konfigurasi Git attributes untuk penanganan normalisasi baris dan encoding file teks pada repositori."
+  },
+  ".gitignore": {
+    "summary": "Daftar file dan direktori yang diabaikan oleh Git, termasuk dependensi node_modules dan berkas build Next.js."
+  },
+  ".ngodingpakeaiignore": {
+    "summary": "Konfigurasi aturan pengabaian berkas khusus untuk scanner NgodingPakeAI CLI guna mencegah berkas privat dan cache terindeks."
+  },
+  "AGENTS.md": {
+    "summary": "Panduan integrasi dan instruksi operasional untuk AI coding agent yang bekerja menggunakan NgodingPakeAI CLI."
+  },
+  "next-env.d.ts": {
+    "summary": "Deklarasi tipe TypeScript otomatis dari Next.js untuk mendukung App Router dan modul global."
+  },
+  "next.config.mjs": {
+    "summary": "Konfigurasi utama Next.js 16 dengan Turbopack, App Router, dan pengaturan kompilasi modern."
+  },
+  "package-lock.json": {
+    "summary": "Catatan pohon dependensi npm terkunci untuk memastikan versi modul pihak ketiga konsisten di setiap lingkungan."
+  },
+  "package.json": {
+    "summary": "Manifest proyek npm yang mendefinisikan skrip build, dependensi Next.js 16, Tailwind CSS v4, Lucide, Three.js, dan Framer Motion."
+  },
+  "postcss.config.mjs": {
+    "summary": "Konfigurasi PostCSS untuk mengaktifkan pemrosesan utilitas Tailwind CSS v4."
+  },
+  "README.md": {
+    "summary": "Dokumentasi pengantar proyek MintFolio portofolio interaktif bertema dark mint green."
+  },
+  "src/app/admin/about/page.tsx": {
+    "summary": "Halaman admin untuk mengelola narasi Tentang Saya, statistik tahun pengalaman, jumlah karya selesai, dan poin highlight.",
+    "sections": [
+      {
+        "symbol": "AdminAboutPage",
+        "startLine": 28,
+        "endLine": 350,
+        "summary": "Komponen antarmuka form interaktif untuk memperbarui data biografi dan statistik tentang kreator."
+      }
+    ]
+  },
+  "src/app/admin/categories/page.tsx": {
+    "summary": "Halaman admin untuk manajemen kategori karya seperti Graphic Design, UI/UX, Video Editor, dan 3D Modeling.",
+    "sections": [
+      {
+        "symbol": "AdminCategoriesPage",
+        "startLine": 25,
+        "endLine": 320,
+        "summary": "Komponen form CRUD kategori karya dengan pembuat slug otomatis dan indikator jumlah proyek."
+      }
+    ]
+  },
+  "src/app/admin/contact/page.tsx": {
+    "summary": "Halaman admin untuk memperbarui kontak domisili, email, nomor telepon, dan tautan sosial media yang dapat diatur urutannya.",
+    "sections": [
+      {
+        "symbol": "AdminContactPage",
+        "startLine": 45,
+        "endLine": 480,
+        "summary": "Komponen formulir manajemen data kontak dan urutan tautan sosial media portofolio."
+      }
+    ]
+  },
+  "src/app/admin/inquiries/page.tsx": {
+    "summary": "Halaman admin inbox untuk membaca dan mengelola pesan masuk dari formulir kontak publik.",
+    "sections": [
+      {
+        "symbol": "AdminInquiriesPage",
+        "startLine": 20,
+        "endLine": 280,
+        "summary": "Tampilan daftar pesan masuk pengunjung dengan filter status dibaca dan dialog rincian pesan."
+      }
+    ]
+  },
+  "src/app/admin/layout.tsx": {
+    "summary": "Layout pembungkus panel admin yang memadukan tema dark mint green dan bilah navigasi admin.",
+    "sections": [
+      {
+        "symbol": "AdminLayout",
+        "startLine": 5,
+        "endLine": 20,
+        "summary": "Komponen pembungkus layout halaman admin dengan penyedia navigasi terpadu."
+      }
+    ]
+  },
+  "src/app/admin/login/page.tsx": {
+    "summary": "Halaman login autentikasi admin dengan verifikasi kredensial dan tombol demo instan.",
+    "sections": [
+      {
+        "symbol": "AdminLoginPage",
+        "startLine": 18,
+        "endLine": 210,
+        "summary": "Formulir autentikasi masuk admin dengan validasi dan penanganan cookie sesi aman."
+      }
+    ]
+  },
+  "src/app/admin/logout/page.tsx": {
+    "summary": "Halaman transisi keluar admin dengan pembersihan cookie sesi dan pengalihan ke halaman login.",
+    "sections": [
+      {
+        "symbol": "AdminLogoutPage",
+        "startLine": 12,
+        "endLine": 60,
+        "summary": "Komponen pengolah animasi keluar sesi admin secara otomatis."
+      }
+    ]
+  },
+  "src/app/admin/media/page.tsx": {
+    "summary": "Pusat pustaka media admin untuk mengunggah dan mengelola gambar, video motion, dan file model 3D WebGL.",
+    "sections": [
+      {
+        "symbol": "AdminMediaPage",
+        "startLine": 22,
+        "endLine": 260,
+        "summary": "Galeri pustaka media terpusat dengan filter tipe berkas dan fungsi salin URL aset."
+      }
+    ]
+  },
+  "src/app/admin/page.tsx": {
+    "summary": "Dashboard utama panel admin yang menyajikan ringkasan statistik karya, keahlian, dan jalan pintas manajemen konten.",
+    "sections": [
+      {
+        "symbol": "AdminDashboardPage",
+        "startLine": 25,
+        "endLine": 260,
+        "summary": "Tampilan metrik statistik cepat portofolio dan kartu navigasi seksi konten."
+      }
+    ]
+  },
+  "src/app/admin/profile/page.tsx": {
+    "summary": "Halaman admin untuk mengubah identitas hero, nama tampilan, sapaan typewriter, peran dinamis, dan foto profil.",
+    "sections": [
+      {
+        "symbol": "AdminProfilePage",
+        "startLine": 28,
+        "endLine": 360,
+        "summary": "Formulir pengelolaan profil utama kreator dan daftar peran rotasi typewriter."
+      }
+    ]
+  },
+  "src/app/admin/projects/page.tsx": {
+    "summary": "Halaman admin CRUD portofolio karya dengan pengatur media gambar, video, dan 3D WebGL beserta filter kategori.",
+    "sections": [
+      {
+        "symbol": "AdminProjectsPage",
+        "startLine": 35,
+        "endLine": 650,
+        "summary": "Komponen komprehensif manajemen galeri karya dengan modal editor dan pratinjau media."
+      }
+    ]
+  },
+  "src/app/admin/settings/page.tsx": {
+    "summary": "Halaman admin untuk pengaturan sistem, judul situs, email administrator, dan mode pemeliharaan.",
+    "sections": [
+      {
+        "symbol": "AdminSettingsPage",
+        "startLine": 18,
+        "endLine": 200,
+        "summary": "Formulir konfigurasi pengaturan global website dan preferensi tema gelap."
+      }
+    ]
+  },
+  "src/app/admin/skills/page.tsx": {
+    "summary": "Halaman admin untuk manajemen keahlian teknis, persentase level kemahiran, kategori, dan ikon representatif.",
+    "sections": [
+      {
+        "symbol": "AdminSkillsPage",
+        "startLine": 28,
+        "endLine": 360,
+        "summary": "Antarmuka CRUD keahlian dengan penggeser slider level kemahiran dan filter kategori."
+      }
+    ]
+  },
+  "src/app/api/admin/about/route.ts": {
+    "summary": "Endpoint API admin untuk membaca, memperbarui, dan memodifikasi sebagian data Tentang Saya.",
+    "sections": [
+      {
+        "symbol": "GET, PUT, PATCH",
+        "startLine": 8,
+        "endLine": 75,
+        "summary": "Handler REST API rute Tentang Saya dengan validasi autentikasi admin."
+      }
+    ]
+  },
+  "src/app/api/admin/auth/route.ts": {
+    "summary": "Endpoint API autentikasi admin untuk login kredensial, validasi token sesi HMAC, dan logout.",
+    "sections": [
+      {
+        "symbol": "POST, GET, DELETE",
+        "startLine": 9,
+        "endLine": 85,
+        "summary": "Handler otentikasi admin berbasis HTTP-only secure cookie dan token HMAC SHA-256."
+      }
+    ]
+  },
+  "src/app/api/admin/categories/route.ts": {
+    "summary": "Endpoint API admin untuk membaca seluruh kategori dan menambahkan kategori karya baru.",
+    "sections": [
+      {
+        "symbol": "GET, POST, PATCH",
+        "startLine": 8,
+        "endLine": 130,
+        "summary": "Handler REST API untuk daftar dan pembuatan kategori dengan pembentukan slug otomatis."
+      }
+    ]
+  },
+  "src/app/api/admin/categories/[id]/route.ts": {
+    "summary": "Endpoint API admin untuk membaca, memperbarui, dan menghapus kategori berdasarkan ID dengan proteksi referensi proyek.",
+    "sections": [
+      {
+        "symbol": "GET, PUT, PATCH, DELETE",
+        "startLine": 8,
+        "endLine": 120,
+        "summary": "Handler REST API spesifik kategori dengan validasi relasi terhadap karya yang masih terkait."
+      }
+    ]
+  },
+  "src/app/api/admin/contact/route.ts": {
+    "summary": "Endpoint API admin untuk membaca, memperbarui, memodifikasi sebagian, dan menghapus tautan sosial pada data kontak.",
+    "sections": [
+      {
+        "symbol": "GET, PUT, POST, PATCH, DELETE",
+        "startLine": 8,
+        "endLine": 150,
+        "summary": "Handler REST API untuk manajemen info kontak dan koleksi tautan sosial media."
+      }
+    ]
+  },
+  "src/app/api/admin/inquiries/route.ts": {
+    "summary": "Endpoint API admin untuk mengambil daftar pesan masuk dari pengunjung dan menandai status dibaca.",
+    "sections": [
+      {
+        "symbol": "GET, PATCH, DELETE",
+        "startLine": 8,
+        "endLine": 100,
+        "summary": "Handler REST API pengelolaan pesan masuk form kontak publik."
+      }
+    ]
+  },
+  "src/app/api/admin/login/route.ts": {
+    "summary": "Endpoint delegasi untuk proses login admin yang meneruskan permintaan ke handler auth terpusat."
+  },
+  "src/app/api/admin/logout/route.ts": {
+    "summary": "Endpoint delegasi untuk proses logout admin yang menghapus cookie sesi terautentikasi."
+  },
+  "src/app/api/admin/profile/route.ts": {
+    "summary": "Endpoint API admin untuk membaca dan memperbarui data profil nama, sapaan, peran, dan foto hero.",
+    "sections": [
+      {
+        "symbol": "GET, PUT, PATCH",
+        "startLine": 8,
+        "endLine": 75,
+        "summary": "Handler REST API profil kreator dengan validasi data masukan."
+      }
+    ]
+  },
+  "src/app/api/admin/projects/route.ts": {
+    "summary": "Endpoint API admin untuk mengambil daftar karya dengan filter, membuat karya baru, reorder, dan hapus.",
+    "sections": [
+      {
+        "symbol": "GET, POST, PUT, PATCH, DELETE",
+        "startLine": 12,
+        "endLine": 240,
+        "summary": "Handler REST API komprehensif galeri karya dengan validasi kategori dan pengurutan urutan tampil."
+      }
+    ]
+  },
+  "src/app/api/admin/projects/[id]/route.ts": {
+    "summary": "Endpoint API admin untuk mengambil, memperbarui, dan menghapus satu proyek spesifik berdasarkan ID.",
+    "sections": [
+      {
+        "symbol": "GET, PUT, PATCH, DELETE",
+        "startLine": 8,
+        "endLine": 140,
+        "summary": "Handler REST API operasi detail satu karya portofolio."
+      }
+    ]
+  },
+  "src/app/api/admin/settings/route.ts": {
+    "summary": "Endpoint API admin untuk membaca dan menyimpan konfigurasi pengaturan sistem website.",
+    "sections": [
+      {
+        "symbol": "GET, PUT",
+        "startLine": 8,
+        "endLine": 90,
+        "summary": "Handler REST API pengaturan global dan mode pemeliharaan portofolio."
+      }
+    ]
+  },
+  "src/app/api/admin/skills/route.ts": {
+    "summary": "Endpoint API admin untuk mengambil daftar keahlian, menambah keahlian baru, dan mengatur urutan tampilan.",
+    "sections": [
+      {
+        "symbol": "GET, POST, PATCH",
+        "startLine": 8,
+        "endLine": 140,
+        "summary": "Handler REST API keahlian teknis dengan dukungan batch reorder urutan."
+      }
+    ]
+  },
+  "src/app/api/admin/skills/[id]/route.ts": {
+    "summary": "Endpoint API admin untuk mengambil, memperbarui, dan menghapus keahlian teknis spesifik berdasarkan ID.",
+    "sections": [
+      {
+        "symbol": "GET, PUT, DELETE",
+        "startLine": 8,
+        "endLine": 110,
+        "summary": "Handler REST API operasi detail keahlian teknis tunggal."
+      }
+    ]
+  },
+  "src/app/api/admin/upload/route.ts": {
+    "summary": "Endpoint API admin untuk menerima unggahan berkas media gambar, video, dan model 3D WebGL hingga 60MB.",
+    "sections": [
+      {
+        "symbol": "POST, GET",
+        "startLine": 9,
+        "endLine": 105,
+        "summary": "Handler penerimaan unggahan multipart form data dengan sanitasi nama berkas dan deteksi tipe media."
+      }
+    ]
+  },
+  "src/app/api/categories/route.ts": {
+    "summary": "Endpoint API publik untuk menyajikan daftar kategori hasil karya bagi antarmuka galeri portofolio."
+  },
+  "src/app/api/contact/route.ts": {
+    "summary": "Endpoint API publik untuk membaca data kontak dan menerima pengiriman pesan baru dari formulir pengunjung.",
+    "sections": [
+      {
+        "symbol": "GET, POST",
+        "startLine": 8,
+        "endLine": 65,
+        "summary": "Handler publik pembacaan kontak dan penerima pesan kontak pengunjung."
+      }
+    ]
+  },
+  "src/app/api/content/route.ts": {
+    "summary": "Endpoint API publik terpadu untuk membaca seluruh konten terbaru portofolio dengan pengurutan urutan dan metadata pembaruan.",
+    "sections": [
+      {
+        "symbol": "GET",
+        "startLine": 6,
+        "endLine": 95,
+        "summary": "Handler pengambil data terpadu profil, tentang, keahlian, kategori, karya, dan kontak dengan filter seksi."
+      }
+    ]
+  },
+  "src/app/api/home/route.ts": {
+    "summary": "Endpoint API publik yang menyajikan data beranda lengkap dengan tajuk cache HTTP untuk performa tinggi."
+  },
+  "src/app/api/portfolio/route.ts": {
+    "summary": "Endpoint API publik ringkas untuk menyediakan seluruh data portofolio dari basis data lokal."
+  },
+  "src/app/api/projects/route.ts": {
+    "summary": "Endpoint API publik untuk mengambil daftar karya portofolio dengan filter parameter kategori."
+  },
+  "src/app/api/skills/route.ts": {
+    "summary": "Endpoint API publik untuk menyajikan daftar keahlian teknis beserta level kemahiran."
+  },
+  "src/app/globals.css": {
+    "summary": "Berkas styling global yang mengonfigurasi Tailwind CSS v4, variabel tema dark mint green, dan animasi kustom."
+  },
+  "src/app/layout.tsx": {
+    "summary": "Komponen RootLayout Next.js yang menyediakan navbar, latar belakang animasi interaktif, provider konteks, dan footer.",
+    "sections": [
+      {
+        "symbol": "RootLayout",
+        "startLine": 14,
+        "endLine": 35,
+        "summary": "Komponen tata letak induk aplikasi dengan integrasi AnimatedBackground dan PortfolioProvider."
+      }
+    ]
+  },
+  "src/app/page.tsx": {
+    "summary": "Halaman utama beranda portofolio yang merangkai seksi hero, tentang, keahlian, karya, dan kontak dengan scroll reveal.",
+    "sections": [
+      {
+        "symbol": "HomePage",
+        "startLine": 13,
+        "endLine": 54,
+        "summary": "Komponen utama beranda dengan integrasi LoadingScreen dan seksi-seksi portofolio interaktif."
+      }
+    ]
+  },
+  "src/components/admin/AdminLayoutClient.tsx": {
+    "summary": "Komponen wrapper sisi klien untuk panel admin yang mengontrol status buka-tutup sidebar dan navigasi responsif."
+  },
+  "src/components/admin/AdminNavbar.tsx": {
+    "summary": "Bilah navigasi atas panel admin yang menampilkan status koneksi sistem dan tombol logout cepat."
+  },
+  "src/components/admin/AdminSidebar.tsx": {
+    "summary": "Sidebar navigasi panel admin dengan tautan ke seluruh seksi manajemen konten dan indikator rute aktif."
+  },
+  "src/components/home/AboutSection.tsx": {
+    "summary": "Seksi Tentang Saya pada beranda yang menyajikan narasi perjalanan, kartu statistik tahun pengalaman, dan poin keunggulan.",
+    "sections": [
+      {
+        "symbol": "AboutSection",
+        "startLine": 15,
+        "endLine": 210,
+        "summary": "Komponen tampilan biografi kreator dengan kartu statistik bercahaya hijau mint."
+      }
+    ]
+  },
+  "src/components/home/ContactSection.tsx": {
+    "summary": "Seksi kontak interaktif dengan kartu detail domisili, email, tautan media sosial eksternal, dan formulir kirim pesan.",
+    "sections": [
+      {
+        "symbol": "ContactSection",
+        "startLine": 25,
+        "endLine": 340,
+        "summary": "Komponen antarmuka kontak publik dengan formulir kirim pesan interaktif dan tautan sosial."
+      }
+    ]
+  },
+  "src/components/home/HeroSection.tsx": {
+    "summary": "Seksi Hero pembuka beranda dengan sapaan typewriter dinamis, rotasi keahlian, tombol panggilan aksi, dan kartu showcase visual.",
+    "sections": [
+      {
+        "symbol": "HeroSection",
+        "startLine": 12,
+        "endLine": 190,
+        "summary": "Komponen hero visual interaktif dengan teks mengetik otomatis dan showcase kreator."
+      }
+    ]
+  },
+  "src/components/home/HomeSkeleton.tsx": {
+    "summary": "Komponen penampung skeleton loading untuk mencegah layout shift saat data publik sedang dimuat."
+  },
+  "src/components/home/ProjectsSection.tsx": {
+    "summary": "Seksi galeri portofolio dengan 4 tab kategori karya, kartu proyek interaktif, pemutar video inline, dan modal pratinjau 3D WebGL.",
+    "sections": [
+      {
+        "symbol": "ProjectsSection",
+        "startLine": 15,
+        "endLine": 300,
+        "summary": "Komponen galeri proyek dengan filter tab kategori dinamis dan dialog pratinjau media lengkap."
+      }
+    ]
+  },
+  "src/components/home/SkillsSection.tsx": {
+    "summary": "Seksi keahlian teknis dengan visualisasi bar persentase animated skill, lencana kategori, dan ikon perangkat lunak kreatif.",
+    "sections": [
+      {
+        "symbol": "SkillsSection",
+        "startLine": 15,
+        "endLine": 180,
+        "summary": "Komponen tampilan daftar keahlian dengan animasi bar kemahiran dan filter tab kategori."
+      }
+    ]
+  },
+  "src/components/layout/Footer.tsx": {
+    "summary": "Footer website bertema dark mint green dengan tautan cepat seksi beranda, hak cipta, dan jalan pintas panel admin."
+  },
+  "src/components/layout/Navbar.tsx": {
+    "summary": "Bilah navigasi mengambang responsif dengan pill aktif berbasis Framer Motion, pelacak posisi gulir, dan tombol kontak.",
+    "sections": [
+      {
+        "symbol": "Navbar",
+        "startLine": 10,
+        "endLine": 160,
+        "summary": "Komponen navigasi utama dengan indikator bagian aktif otomatis dan menu drawer seluler."
+      }
+    ]
+  },
+  "src/components/ui/AnimatedBackground.tsx": {
+    "summary": "Latar belakang animasi interaktif dengan partikel mint melayang, efek sorotan kursor mouse, dan pola kisi modern.",
+    "sections": [
+      {
+        "symbol": "AnimatedBackground",
+        "startLine": 15,
+        "endLine": 95,
+        "summary": "Komponen visual ambient dengan partikel melayang acak dan pelacak posisi mouse."
+      }
+    ]
+  },
+  "src/components/ui/AnimatedSkillBar.tsx": {
+    "summary": "Komponen visualisasi bar keahlian dengan animasi pengisian persentase saat elemen memasuki layar viewport."
+  },
+  "src/components/ui/AnimatedTextNarrative.tsx": {
+    "summary": "Komponen narasi teks dengan efek pemunculan bertahap kata demi kata saat digulir ke area pandang."
+  },
+  "src/components/ui/ContactLinkButton.tsx": {
+    "summary": "Komponen tombol tautan sosial media interaktif dengan deteksi ikon otomatis berdasarkan platform."
+  },
+  "src/components/ui/LoadingScreen.tsx": {
+    "summary": "Layar splash intro pembuka halaman yang memukau dengan emblem 3D bercahaya, telemetri sistem, dan batas sekali per kunjungan.",
+    "sections": [
+      {
+        "symbol": "LoadingScreen",
+        "startLine": 7,
+        "endLine": 160,
+        "summary": "Komponen animasi intro loading berkecepatan 60 FPS dengan pembatasan berbasis sessionStorage."
+      }
+    ]
+  },
+  "src/components/ui/ProjectCard.tsx": {
+    "summary": "Kartu display karya portofolio dengan efek hover lift, pemutar video inline, lencana tipe media, dan aksi rincian.",
+    "sections": [
+      {
+        "symbol": "ProjectCard",
+        "startLine": 13,
+        "endLine": 170,
+        "summary": "Komponen kartu karya interaktif dengan dukungan hover animasi dan pemutaran video langsung."
+      }
+    ]
+  },
+  "src/components/ui/ScrollReveal.tsx": {
+    "summary": "Utilitas animasi scroll reveal dan progress bar gulir berbasis Framer Motion dengan opsi pemicu sekali tampil.",
+    "sections": [
+      {
+        "symbol": "ScrollReveal",
+        "startLine": 16,
+        "endLine": 65,
+        "summary": "Komponen pembungkus animasi saat elemen masuk ke viewport dengan batas once."
+      },
+      {
+        "symbol": "ScrollProgressBar",
+        "startLine": 69,
+        "endLine": 85,
+        "summary": "Bilah indikator persentase scroll atas halaman."
+      }
+    ]
+  },
+  "src/components/ui/ThreeDViewer.tsx": {
+    "summary": "Kanvas interaktif 3D Three.js WebGL untuk memuat dan merender model 3D (GLTF/GLB/OBJ) dengan orbit controls dan pencahayaan mint.",
+    "sections": [
+      {
+        "symbol": "ThreeDViewer",
+        "startLine": 35,
+        "endLine": 380,
+        "summary": "Komponen perender WebGL Three.js dengan rotasi otomatis, kendali kamera interaktif, dan penanganan fallback."
+      }
+    ]
+  },
+  "src/components/ui/Typewriter.tsx": {
+    "summary": "Komponen teks mesin tik animasi dengan kursor berkedip, ritme ketik alami, dan rotasi daftar kalimat berulang.",
+    "sections": [
+      {
+        "symbol": "Typewriter",
+        "startLine": 16,
+        "endLine": 85,
+        "summary": "Komponen efek mengetik teks otomatis dengan jeda alami dan kursor terminal bercahaya."
+      }
+    ]
+  },
+  "src/context/PortfolioContext.tsx": {
+    "summary": "Penyedia state React Context untuk mendistribusikan data profil, tentang, keahlian, kategori, dan karya ke seluruh komponen publik.",
+    "sections": [
+      {
+        "symbol": "PortfolioProvider",
+        "startLine": 37,
+        "endLine": 85,
+        "summary": "Komponen provider yang menginisialisasi dan menyinkronkan data portofolio dari API publik."
+      }
+    ]
+  },
+  "src/lib/mock-data.ts": {
+    "summary": "Kumpulan data awal dan tipe data TypeScript untuk profil, tentang, keahlian, kategori, karya, dan kontak portofolio."
+  },
+  "src/lib/server/auth.ts": {
+    "summary": "Utilitas autentikasi server untuk hashing SHA-256, pembuatan token HMAC sesi admin, dan verifikasi cookie masuk.",
+    "sections": [
+      {
+        "symbol": "verifyAdminPassword, createSessionToken, isAuthenticatedAdmin",
+        "startLine": 10,
+        "endLine": 80,
+        "summary": "Fungsi-fungsi kriptografi dan validasi sesi keamanan admin."
+      }
+    ]
+  },
+  "src/lib/server/db.ts": {
+    "summary": "Lapisan repositori persistensi data JSON atomik untuk operasi CRUD profil, tentang, keahlian, kategori, karya, dan kontak.",
+    "sections": [
+      {
+        "symbol": "getDatabase, saveDatabase",
+        "startLine": 30,
+        "endLine": 58,
+        "summary": "Fungsi baca dan tulis atomik berkas basis data portfolio.json dengan pencegahan korupsi."
+      },
+      {
+        "symbol": "getProjects, createProject, updateProject, deleteProject, reorderProjects",
+        "startLine": 210,
+        "endLine": 270,
+        "summary": "Fungsi repositori CRUD dan pengurutan karya portofolio."
+      }
+    ]
+  },
+  "src/lib/server/migrations.ts": {
+    "summary": "Skrip migrasi skema basis data otomatis untuk memastikan kompatibilitas struktur data JSON lintas versi.",
+    "sections": [
+      {
+        "symbol": "runMigrations",
+        "startLine": 15,
+        "endLine": 105,
+        "summary": "Fungsi pelaksana migrasi versi skema basis data dari versi 1 ke versi terbaru."
+      }
+    ]
+  },
+  "src/lib/server/models.ts": {
+    "summary": "Definisi antarmuka TypeScript untuk skema entitas basis data termasuk Profile, About, Skill, Category, Project, Contact, dan Inquiry."
+  },
+  "src/lib/server/schema.ts": {
+    "summary": "Fungsi validasi skema masukan server-side untuk memastikan integritas data formulir profil, keahlian, karya, dan kontak.",
+    "sections": [
+      {
+        "symbol": "validateProject, validateSkill, validateCategory, validateContact",
+        "startLine": 20,
+        "endLine": 180,
+        "summary": "Kumpulan validator sanitasi masukan pengguna sebelum disimpan ke basis data."
+      }
+    ]
+  },
+  "src/lib/server/seeder.ts": {
+    "summary": "Utilitas penyemai data awal portofolio yang mengisi basis data dengan data mock realistis saat pertama kali dijalankan."
+  },
+  "src/lib/server/storage.ts": {
+    "summary": "Utilitas penyimpanan berkas server untuk menyimpan dan mengelola unggahan berkas gambar, video, dan model 3D WebGL.",
+    "sections": [
+      {
+        "symbol": "saveUploadedFile, deleteUploadedFile, detectMediaType",
+        "startLine": 15,
+        "endLine": 95,
+        "summary": "Fungsi penyimpanan berkas ke direktori public/uploads dengan deteksi ekstensi dan ukuran berkas."
+      }
+    ]
+  },
+  "src/lib/utils.ts": {
+    "summary": "Fungsi pembantu utilitas styling umum seperti penggabungan nama kelas Tailwind CSS (cn)."
+  },
+  "src/middleware.ts": {
+    "summary": "Middleware Next.js untuk memproteksi seluruh rute halaman /admin dan endpoint /api/admin dengan verifikasi cookie token.",
+    "sections": [
+      {
+        "symbol": "middleware",
+        "startLine": 12,
+        "endLine": 65,
+        "summary": "Fungsi interceptor permintaan HTTP untuk memeriksa hak akses dan mengarahkan sesi tak sah ke halaman login."
+      }
+    ]
+  },
+  "tsconfig.json": {
+    "summary": "Konfigurasi kompilator TypeScript untuk Next.js dengan dukungan path alias @/* dan modul ESNext."
+  }
+}
