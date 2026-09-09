@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import {
   ArrowLeft,
   RotateCcw,
@@ -31,6 +34,15 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldAlert,
+  Upload,
+  FileUp,
+  FileCode,
+  FolderOpen,
+  AlertCircle,
+  Info,
+  CheckCircle2,
+  Cpu,
+  HelpCircle,
 } from "lucide-react";
 import { initialProjects, ProjectItem } from "@/lib/mock-data";
 
@@ -91,6 +103,21 @@ export default function Karya3DReviewPage({
   const [partsList, setPartsList] = useState<PartInfo[]>([]);
   const [activePartId, setActivePartId] = useState<string | null>(null);
   const [polyStats, setPolyStats] = useState({ tris: 0, verts: 0 });
+
+  // Custom 3D Model Import & Test States (Blender, Rhino, SketchUp, CAD)
+  const [loadedCustomModel, setLoadedCustomModel] = useState<{
+    name: string;
+    format: string;
+    size?: string;
+  } | null>(null);
+  const [isLoadingFile, setIsLoadingFile] = useState<boolean>(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const customModelGroupRef = useRef<THREE.Group | null>(null);
+  const defaultModelGroupRef = useRef<THREE.Group | null>(null);
+  const defaultPartsListRef = useRef<PartInfo[]>([]);
+  const defaultPolyStatsRef = useRef<{ tris: number; verts: number }>({ tris: 0, verts: 0 });
 
   // Target explode value for smooth animation
   const targetExplodeRef = useRef<number>(0);
@@ -207,7 +234,14 @@ export default function Karya3DReviewPage({
     // 8. Build 3D Models with Explode Capability
     const partsMap: Record<string, THREE.Object3D> = {};
     const rootGroup = new THREE.Group();
+    rootGroup.name = "default_model_group";
     scene.add(rootGroup);
+    defaultModelGroupRef.current = rootGroup;
+
+    const customGroup = new THREE.Group();
+    customGroup.name = "custom_model_group";
+    scene.add(customGroup);
+    customModelGroupRef.current = customGroup;
 
     let totalTris = 0;
     let totalVerts = 0;
@@ -492,7 +526,37 @@ export default function Karya3DReviewPage({
     }
 
     modelPartsRef.current = partsMap;
-    setPolyStats({ tris: Math.round(totalTris), verts: totalVerts });
+    const initialStats = { tris: Math.round(totalTris), verts: totalVerts };
+    setPolyStats(initialStats);
+    defaultPolyStatsRef.current = initialStats;
+
+    if (modelKey === "packaging-box") {
+      defaultPartsListRef.current = [
+        { id: "part_box_lid", name: "Tutup Box Atas", description: "Bagian tutup kemasan dengan emboss foil emas", visible: true },
+        { id: "part_left_flap", name: "Flap Lipatan Kiri", description: "Sayap pengunci samping dengan garis lipat dieline", visible: true },
+        { id: "part_right_flap", name: "Flap Lipatan Kanan", description: "Sayap pengunci samping dengan garis lipat dieline", visible: true },
+        { id: "part_box_body", name: "Badan Kemasan Utama", description: "Wadah luar box berlapis matte soft-touch", visible: true },
+        { id: "part_inner_tray", name: "Tray Beludru Dalam", description: "Bantalan pelindung produk interior", visible: true },
+        { id: "part_perfume_bottle", name: "Botol Parfum / Produk", description: "Botol kaca kristal dengan cap emas elegan", visible: true },
+      ];
+    } else if (modelKey === "cyber-helmet") {
+      defaultPartsListRef.current = [
+        { id: "part_helmet_dome", name: "Tempurung Helm Luar", description: "Armor kubah serat karbon pelindung kepala", visible: true },
+        { id: "part_helmet_visor", name: "Visor Optik HUD", description: "Kaca visor magnetik dengan proyeksi HUD neon", visible: true },
+        { id: "part_helmet_chin", name: "Pelindung Dagu (Chin Guard)", description: "Pelat pelindung rahang bawah", visible: true },
+        { id: "part_helmet_ear_l", name: "Modul Audio Kiri", description: "Pod komunikasi dan peredam bising kiri", visible: true },
+        { id: "part_helmet_ear_r", name: "Modul Audio Kanan", description: "Pod sensor akustik dan antena kanan", visible: true },
+        { id: "part_helmet_core", name: "Inti Komputasi Sibernetik", description: "Unit pemrosesan internal holografik", visible: true },
+      ];
+    } else {
+      defaultPartsListRef.current = [
+        { id: "part_can_tab", name: "Pull Tab Pembuka", description: "Cincin pembuka kaleng aluminium timbul", visible: true },
+        { id: "part_can_lid", name: "Tutup Kaleng Atas", description: "Penutup atas dengan skor pembuka", visible: true },
+        { id: "part_can_label", name: "Sleeve Label 360°", description: "Label desain kemasan cetak foil dinamis", visible: true },
+        { id: "part_can_body", name: "Badan Aluminium Kaleng", description: "Silinder primer logam daur ulang 330ml", visible: true },
+        { id: "part_can_liquid", name: "Cairan Minuman Organik", description: "Isi produk bio-energy mint berkilau", visible: true },
+      ];
+    }
 
     // 9. Animation & Explode Render Loop
     let clock = new THREE.Clock();
@@ -575,6 +639,33 @@ export default function Karya3DReviewPage({
         }
       }
 
+      // If custom uploaded model is active, animate its parts
+      if (
+        customModelGroupRef.current &&
+        customModelGroupRef.current.visible &&
+        customModelGroupRef.current.children.length > 0
+      ) {
+        customModelGroupRef.current.children.forEach((child, idx) => {
+          if (!child.userData.initialPos) {
+            child.userData.initialPos = child.position.clone();
+            const dir = child.position.clone().normalize();
+            if (dir.lengthSq() < 0.0001) {
+              dir.set(
+                ((idx % 3) - 1) * 0.6,
+                ((Math.floor(idx / 3) % 2) - 0.5) * 0.6,
+                0.6
+              ).normalize();
+            }
+            child.userData.explodeDir = dir;
+          }
+          const init = child.userData.initialPos as THREE.Vector3;
+          const dir = child.userData.explodeDir as THREE.Vector3;
+          child.position.x = init.x + dir.x * p * 1.5;
+          child.position.y = init.y + dir.y * p * 1.5;
+          child.position.z = init.z + dir.z * p * 1.5;
+        });
+      }
+
       controls.update();
       renderer.render(scene, camera);
     };
@@ -604,6 +695,272 @@ export default function Karya3DReviewPage({
       }
     };
   }, [modelKey]);
+
+  // ----------------------------------------------------
+  // CUSTOM 3D FILE PARSING & LOADING (Blender, Rhino, SketchUp, CAD)
+  // ----------------------------------------------------
+  const loadCustom3DObject = (
+    object: THREE.Object3D,
+    fileName: string,
+    fileFormat: string,
+    fileSizeStr?: string
+  ) => {
+    if (!sceneRef.current || !customModelGroupRef.current || !defaultModelGroupRef.current) return;
+
+    // 1. Hide default model
+    defaultModelGroupRef.current.visible = false;
+
+    // 2. Clear old custom children
+    const customGroup = customModelGroupRef.current;
+    while (customGroup.children.length > 0) {
+      customGroup.remove(customGroup.children[0]);
+    }
+    customGroup.visible = true;
+    customGroup.add(object);
+
+    // 3. Center and Scale Bounding Box
+    const box = new THREE.Box3().setFromObject(object);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    // Shift object so center is at (0, 0, 0)
+    object.position.x -= center.x;
+    object.position.y -= center.y;
+    object.position.z -= center.z;
+
+    // Scale to standard viewable size (max dimension ~3.2)
+    const maxDim = Math.max(size.x, size.y, size.z);
+    if (maxDim > 0) {
+      const scale = 3.2 / maxDim;
+      object.scale.set(scale, scale, scale);
+    }
+
+    // Ground alignment (align min y with grid floor at y = -1.6)
+    const newBox = new THREE.Box3().setFromObject(object);
+    object.position.y += (-1.55 - newBox.min.y);
+
+    // 4. Traverse meshes: setup shadow, materials, parts
+    const partsMap: Record<string, THREE.Object3D> = {};
+    const newParts: PartInfo[] = [];
+    let tris = 0;
+    let verts = 0;
+    let partIndex = 1;
+
+    object.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        if (!mesh.material) {
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: 0x34d399,
+            roughness: 0.35,
+            metalness: 0.3,
+          });
+        }
+
+        const partId = `custom_part_${partIndex}`;
+        partsMap[partId] = mesh;
+        newParts.push({
+          id: partId,
+          name: mesh.name || `Part Mesh #${partIndex}`,
+          description: `Format: ${fileFormat.toUpperCase()} • Poligon Mesh 3D`,
+          visible: true,
+        });
+
+        if (mesh.geometry) {
+          const geo = mesh.geometry;
+          tris += geo.index ? geo.index.count / 3 : (geo.attributes.position ? geo.attributes.position.count / 3 : 0);
+          verts += geo.attributes.position ? geo.attributes.position.count : 0;
+        }
+        partIndex++;
+      }
+    });
+
+    modelPartsRef.current = partsMap;
+    setPartsList(newParts);
+    setPolyStats({ tris: Math.round(tris), verts });
+    setLoadedCustomModel({
+      name: fileName,
+      format: fileFormat.toUpperCase(),
+      size: fileSizeStr,
+    });
+    setIsLoadingFile(false);
+    setFileError(null);
+
+    // Reset camera controls to look at loaded model
+    if (controlsRef.current) {
+      controlsRef.current.reset();
+    }
+  };
+
+  const process3DFile = async (file: File) => {
+    setIsLoadingFile(true);
+    setFileError(null);
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+
+    const formatSize = (bytes: number) => {
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    };
+    const sizeStr = formatSize(file.size);
+
+    try {
+      if (ext === "glb" || ext === "gltf") {
+        const arrayBuffer = await file.arrayBuffer();
+        const loader = new GLTFLoader();
+        loader.parse(
+          arrayBuffer,
+          "",
+          (gltf) => {
+            loadCustom3DObject(gltf.scene, file.name, ext, sizeStr);
+          },
+          (err) => {
+            console.error("glTF parse error:", err);
+            setFileError("Gagal membaca file GLTF/GLB: " + (err?.message || "Format tidak valid"));
+            setIsLoadingFile(false);
+          }
+        );
+      } else if (ext === "obj") {
+        const text = await file.text();
+        const loader = new OBJLoader();
+        const obj = loader.parse(text);
+        loadCustom3DObject(obj, file.name, "OBJ", sizeStr);
+      } else if (ext === "stl") {
+        const buffer = await file.arrayBuffer();
+        const loader = new STLLoader();
+        const geometry = loader.parse(buffer);
+        const material = new THREE.MeshStandardMaterial({
+          color: 0x34d399,
+          roughness: 0.35,
+          metalness: 0.4,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        const group = new THREE.Group();
+        group.add(mesh);
+        loadCustom3DObject(group, file.name, "STL", sizeStr);
+      } else {
+        const desktopSoftwares: Record<string, string> = {
+          blend: "Blender (File > Export > glTF 2.0 .glb)",
+          "3dm": "Rhinoceros (File > Export Selected > glTF .glb / .obj)",
+          skp: "SketchUp (File > Export > 3D Model > .glb / .obj)",
+          dwg: "AutoCAD (Export ke .stl / .obj)",
+          step: "CAD / STEP (Export ke .obj / .stl atau konversi via Blender)",
+          stp: "CAD / STEP (Export ke .obj / .stl atau konversi via Blender)",
+          sldprt: "SolidWorks (File > Save As > .stl / .obj)",
+          fbx: "Autodesk FBX (Export ulang ke .glb dari Blender untuk web penuh)",
+        };
+        const hint = desktopSoftwares[ext]
+          ? `Gunakan ${desktopSoftwares[ext]}`
+          : "Silakan ekspor dari software 3D Anda ke format universal web: .GLB, .GLTF, .OBJ, atau .STL";
+
+        setFileError(
+          `Format ".${ext}" adalah file mentah proyek software desktop. Web browser membaca format web universal. Panduan: ${hint}.`
+        );
+        setIsLoadingFile(false);
+      }
+    } catch (err: any) {
+      console.error("3D file load error:", err);
+      setFileError("Gagal membaca file 3D: " + (err?.message || "Pastikan file tidak korup"));
+      setIsLoadingFile(false);
+    }
+  };
+
+  const resetToDefaultModel = () => {
+    if (customModelGroupRef.current) {
+      customModelGroupRef.current.visible = false;
+      while (customModelGroupRef.current.children.length > 0) {
+        customModelGroupRef.current.remove(customModelGroupRef.current.children[0]);
+      }
+    }
+    if (defaultModelGroupRef.current) {
+      defaultModelGroupRef.current.visible = true;
+    }
+    setLoadedCustomModel(null);
+    setPartsList(defaultPartsListRef.current);
+    setPolyStats(defaultPolyStatsRef.current);
+    setFileError(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      process3DFile(file);
+    }
+  };
+
+  // Check if project.mediaUrl is an external 3D file on mount
+  useEffect(() => {
+    if (
+      project.mediaUrl &&
+      (project.mediaUrl.endsWith(".glb") ||
+        project.mediaUrl.endsWith(".gltf") ||
+        project.mediaUrl.endsWith(".obj") ||
+        project.mediaUrl.endsWith(".stl") ||
+        (project.mediaUrl.startsWith("/uploads/") && !project.mediaUrl.endsWith(".png") && !project.mediaUrl.endsWith(".jpg")))
+    ) {
+      setIsLoadingFile(true);
+      const ext = project.mediaUrl.split(".").pop()?.toLowerCase() || "glb";
+      if (ext === "glb" || ext === "gltf") {
+        const loader = new GLTFLoader();
+        loader.load(
+          project.mediaUrl,
+          (gltf) => {
+            loadCustom3DObject(gltf.scene, project.title, ext);
+          },
+          undefined,
+          (err) => {
+            console.error("Failed to load project 3D model:", err);
+            setIsLoadingFile(false);
+          }
+        );
+      } else if (ext === "obj") {
+        const loader = new OBJLoader();
+        loader.load(
+          project.mediaUrl,
+          (obj) => {
+            loadCustom3DObject(obj, project.title, "OBJ");
+          },
+          undefined,
+          () => setIsLoadingFile(false)
+        );
+      } else if (ext === "stl") {
+        const loader = new STLLoader();
+        loader.load(
+          project.mediaUrl,
+          (geo) => {
+            const mat = new THREE.MeshStandardMaterial({
+              color: 0x34d399,
+              roughness: 0.35,
+              metalness: 0.4,
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            const grp = new THREE.Group();
+            grp.add(mesh);
+            loadCustom3DObject(grp, project.title, "STL");
+          },
+          undefined,
+          () => setIsLoadingFile(false)
+        );
+      }
+    }
+  }, [project.mediaUrl]);
 
   // Sync Explode Slider with Target
   const handleExplodeChange = (value: number) => {
@@ -789,7 +1146,29 @@ export default function Karya3DReviewPage({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Hidden file input for 3D model test */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".glb,.gltf,.obj,.stl"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  process3DFile(e.target.files[0]);
+                }
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500/25 to-teal-500/25 border border-emerald-500/40 text-xs font-semibold text-emerald-300 hover:text-white hover:border-emerald-400 transition flex items-center gap-1.5 shadow-sm"
+              title="Uji file 3D dari Blender, Rhino, SketchUp, CAD (.glb, .gltf, .obj, .stl)"
+            >
+              <FileUp className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">Uji File 3D Lokal</span>
+              <span className="sm:hidden">Uji 3D</span>
+            </button>
+
             <button
               onClick={handleShare}
               className="px-3.5 py-2 rounded-xl bg-[#0e241b] border border-[#1e4834] text-xs font-semibold text-emerald-300 hover:text-white transition flex items-center gap-1.5"
@@ -883,13 +1262,77 @@ export default function Karya3DReviewPage({
               </div>
             </div>
 
+            {/* Notification: Active Custom Model Banner */}
+            {loadedCustomModel && (
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-emerald-950/80 border-b border-emerald-500/30 text-xs text-emerald-200 z-20">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>
+                    Model Aktif: <strong className="text-white font-mono">{loadedCustomModel.name}</strong>{" "}
+                    ({loadedCustomModel.format} {loadedCustomModel.size ? `• ${loadedCustomModel.size}` : ""})
+                  </span>
+                </div>
+                <button
+                  onClick={resetToDefaultModel}
+                  className="text-[11px] underline hover:text-white text-emerald-400 font-semibold"
+                >
+                  Kembali ke Model Asli
+                </button>
+              </div>
+            )}
+
+            {/* Notification: File Error Banner */}
+            {fileError && (
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-red-950/90 border-b border-red-500/40 text-xs text-red-200 z-20">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  <span className="leading-snug">{fileError}</span>
+                </div>
+                <button
+                  onClick={() => setFileError(null)}
+                  className="text-red-300 hover:text-white font-bold text-base px-1.5"
+                  title="Tutup"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
             {/* The 3D WebGL Canvas */}
             <div
               ref={canvasMountRef}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               className={`w-full relative cursor-grab active:cursor-grabbing bg-[#060e0a] ${
                 isFullscreen ? "h-[calc(100vh-140px)]" : "h-[450px] sm:h-[520px]"
               }`}
             >
+              {/* Drag Over Overlay */}
+              {isDragOver && (
+                <div className="absolute inset-0 z-30 bg-emerald-950/85 border-2 border-dashed border-emerald-400 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-none">
+                  <Upload className="w-12 h-12 text-emerald-400 animate-bounce mb-3" />
+                  <h3 className="text-lg font-bold text-white mb-1">
+                    Lepaskan File 3D Anda di Sini!
+                  </h3>
+                  <p className="text-xs text-emerald-200 max-w-sm">
+                    Mendukung ekspor dari Blender, Rhino, SketchUp, CAD (.glb, .gltf, .obj, .stl).
+                  </p>
+                </div>
+              )}
+
+              {/* Loading State Overlay */}
+              {isLoadingFile && (
+                <div className="absolute inset-0 z-30 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6">
+                  <RefreshCw className="w-10 h-10 text-emerald-400 animate-spin mb-3" />
+                  <h3 className="text-sm font-bold text-white mb-1">
+                    Memuat dan Merakit Objek 3D...
+                  </h3>
+                  <p className="text-xs text-emerald-300/70">
+                    Menghitung poligon, material, dan hierarki mesh
+                  </p>
+                </div>
+              )}
               {/* Floating Camera Angle Buttons HUD (Top Left) */}
               <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 bg-[#08150f]/85 backdrop-blur-md p-1.5 rounded-xl border border-[#193b29] text-[11px]">
                 <span className="text-[9px] uppercase font-bold text-emerald-400/80 px-1 mb-0.5 flex items-center gap-1">
@@ -1173,6 +1616,125 @@ export default function Karya3DReviewPage({
                 <div className="flex justify-between py-1.5">
                   <span className="text-emerald-300/70">Shader Engine:</span>
                   <span className="font-semibold text-white">PBR Metallic/Roughness Three.js</span>
+                </div>
+              </div>
+
+              {/* Panduan Kompatibilitas Software 3D */}
+              <div className="md:col-span-2 mt-2 p-6 rounded-2xl bg-[#071910] border border-[#183f2a] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#143623]">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-5 h-5 text-emerald-400" />
+                    <h4 className="font-bold text-sm sm:text-base text-white">
+                      Panduan Kompatibilitas Software 3D (Blender, Rhinoceros, SketchUp, CAD)
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-mono text-emerald-400/80 bg-[#0e271b] px-2.5 py-1 rounded-full border border-[#1a442f]">
+                    Format Web Universal: .GLB / .GLTF / .OBJ / .STL
+                  </span>
+                </div>
+
+                <p className="text-xs text-emerald-200/80 leading-relaxed">
+                  Web browser modern menjalankan 3D menggunakan WebGL &amp; Three.js secara langsung di GPU kartu grafis. File mentah proyek desktop 
+                  seperti <code className="text-emerald-300 bg-black/40 px-1 py-0.5 rounded">.blend</code>, <code className="text-emerald-300 bg-black/40 px-1 py-0.5 rounded">.3dm</code>, <code className="text-emerald-300 bg-black/40 px-1 py-0.5 rounded">.skp</code>, atau <code className="text-emerald-300 bg-black/40 px-1 py-0.5 rounded">.dwg / .step</code> 
+                  berisi nodes proprietary software yang berukuran sangat besar. Agar bisa dilihat klien di browser 360°, ekspor karya Anda ke format web standar:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+                  {/* 1. Blender */}
+                  <div className="p-4 rounded-xl bg-[#0a2015] border border-[#163b27] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-orange-400" />
+                        Blender (.blend)
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                        Standar Emas
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-300/80">
+                      <strong>Cara Ekspor:</strong><br />
+                      Pilih <span className="text-white font-mono">File &gt; Export &gt; glTF 2.0 (.glb)</span>.
+                    </p>
+                    <p className="text-[10px] text-emerald-400/70 leading-relaxed">
+                      Format <strong className="text-emerald-300">.glb</strong> otomatis menyatukan geometri, material PBR, tekstur warna/roughness, dan hierarki part dalam 1 file compact.
+                    </p>
+                  </div>
+
+                  {/* 2. Rhinoceros */}
+                  <div className="p-4 rounded-xl bg-[#0a2015] border border-[#163b27] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                        Rhinoceros (.3dm)
+                      </span>
+                      <span className="text-[10px] font-bold text-cyan-400 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30">
+                        Rhino 7 / 8
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-300/80">
+                      <strong>Cara Ekspor:</strong><br />
+                      Pilih objek &gt; <span className="text-white font-mono">File &gt; Export Selected</span> &gt; pilih format <span className="text-white font-mono">glTF (.glb)</span> atau <span className="text-white font-mono">Wavefront (.obj)</span>.
+                    </p>
+                    <p className="text-[10px] text-emerald-400/70 leading-relaxed">
+                      Kurva kurva NURBS industri otomatis diubah menjadi poligon mesh segitiga yang tajam dan presisi.
+                    </p>
+                  </div>
+
+                  {/* 3. SketchUp */}
+                  <div className="p-4 rounded-xl bg-[#0a2015] border border-[#163b27] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-red-400" />
+                        SketchUp (.skp)
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/30">
+                        Arsitektur / Ruang
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-300/80">
+                      <strong>Cara Ekspor:</strong><br />
+                      Pilih <span className="text-white font-mono">File &gt; Export &gt; 3D Model</span> &gt; pilih format <span className="text-white font-mono">glTF (.glb)</span> (via plugin/ekstensi glTF) atau <span className="text-white font-mono">.OBJ</span>.
+                    </p>
+                    <p className="text-[10px] text-emerald-400/70 leading-relaxed">
+                      Cocok untuk memamerkan rancangan interior rumah, booth pameran, dan maket arsitektural 360°.
+                    </p>
+                  </div>
+
+                  {/* 4. CAD & SolidWorks */}
+                  <div className="p-4 rounded-xl bg-[#0a2015] border border-[#163b27] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-400" />
+                        CAD / SolidWorks
+                      </span>
+                      <span className="text-[10px] font-bold text-blue-400 bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-500/30">
+                        Teknik &amp; Manufaktur
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-300/80">
+                      <strong>Cara Ekspor:</strong><br />
+                      Ekspor ke format <span className="text-white font-mono">.STL</span> atau <span className="text-white font-mono">.OBJ</span>, atau buka file <span className="text-white font-mono">.step</span> di Blender untuk diekspor ke <span className="text-white font-mono">.GLB</span>.
+                    </p>
+                    <p className="text-[10px] text-emerald-400/70 leading-relaxed">
+                      Format STL &amp; OBJ dapat langsung dibuka dan dihitung poligonnya di peninjau 3D ini.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Direct Test Action inside Specs */}
+                <div className="p-4 rounded-xl bg-[#05140d] border border-[#143d27] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 text-emerald-200">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span>
+                      Ingin melihat hasil ekspor Anda secara langsung? Uji file <strong className="text-emerald-300">.glb, .gltf, .obj, .stl</strong> Anda sekarang!
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-emerald-950 font-bold hover:brightness-110 transition whitespace-nowrap shadow-md"
+                  >
+                    Buka File 3D Lokal
+                  </button>
                 </div>
               </div>
             </div>
