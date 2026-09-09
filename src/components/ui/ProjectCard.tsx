@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Play, Box, Image as ImageIcon, ExternalLink, Sparkles, Star } from "lucide-react";
+import { Play, Box, Image as ImageIcon, ExternalLink, Sparkles, Star, Eye } from "lucide-react";
 import { ProjectItem } from "@/lib/mock-data";
 
 interface ProjectCardProps {
@@ -11,7 +13,11 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, onPreview }: ProjectCardProps) {
+  const router = useRouter();
   const [isPlayingInline, setIsPlayingInline] = React.useState(false);
+
+  const is3D = project.mediaType === "model3d";
+  const review3DUrl = `/karya-3d/${project.id}`;
 
   const getMediaBadge = (type: ProjectItem["mediaType"]) => {
     switch (type) {
@@ -38,17 +44,26 @@ export function ProjectCard({ project, onPreview }: ProjectCardProps) {
 
   const badge = getMediaBadge(project.mediaType);
 
+  const handleCardClick = () => {
+    if (is3D) {
+      router.push(review3DUrl);
+    } else {
+      onPreview(project);
+    }
+  };
+
   return (
     <motion.div
       layout
       whileHover={{ y: -7, scale: 1.01 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="group relative rounded-2xl bg-[#0b1c14] border border-[#1b4330] hover:border-emerald-400/80 overflow-hidden shadow-xl hover:shadow-[0_18px_40px_rgba(16,185,129,0.22)] flex flex-col justify-between transition-colors duration-300"
+      onClick={handleCardClick}
+      className="group relative rounded-2xl bg-[#0b1c14] border border-[#1b4330] hover:border-emerald-400/80 overflow-hidden shadow-xl hover:shadow-[0_18px_40px_rgba(16,185,129,0.22)] flex flex-col justify-between transition-colors duration-300 cursor-pointer"
     >
       {/* Thumbnail / Video Player Area */}
       <div className="relative aspect-[16/10] overflow-hidden bg-[#060e0a]">
         {isPlayingInline && project.mediaType === "video" ? (
-          <div className="relative w-full h-full">
+          <div className="relative w-full h-full" onClick={(e) => e.stopPropagation()}>
             <video
               src={project.mediaUrl}
               controls
@@ -84,6 +99,16 @@ export function ProjectCard({ project, onPreview }: ProjectCardProps) {
               </div>
             )}
 
+            {/* If 3D project, show 3D indicator overlay icon */}
+            {is3D && (
+              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                <div className="w-13 h-13 rounded-2xl bg-[#091a12]/85 border border-[#205139] text-cyan-300 flex flex-col items-center justify-center shadow-[0_0_25px_rgba(6,182,212,0.35)] group-hover:scale-110 group-hover:border-cyan-400/60 transition-transform p-2">
+                  <Box className="w-6 h-6" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-cyan-200 mt-0.5">360° 3D</span>
+                </div>
+              </div>
+            )}
+
             {/* Top Badges Bar */}
             <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-20">
               {/* Media Type Badge */}
@@ -104,7 +129,10 @@ export function ProjectCard({ project, onPreview }: ProjectCardProps) {
             </div>
 
             {/* Hover Action Overlay */}
-            <div className="absolute inset-0 z-20 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 bg-black/60 backdrop-blur-[2px] transition-all duration-300">
+            <div
+              className="absolute inset-0 z-20 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 bg-black/60 backdrop-blur-[2px] transition-all duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
               {project.mediaType === "video" && (
                 <button
                   onClick={(e) => {
@@ -117,13 +145,24 @@ export function ProjectCard({ project, onPreview }: ProjectCardProps) {
                   <span>Putar di Kartu</span>
                 </button>
               )}
-              <button
-                onClick={() => onPreview(project)}
-                className="px-4 py-2.5 rounded-xl bg-[#143525] border border-[#21543b] text-emerald-200 hover:text-white hover:bg-[#1a4430] font-semibold text-xs flex items-center gap-1.5 shadow-lg transition-all"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Rincian</span>
-              </button>
+
+              {is3D ? (
+                <Link
+                  href={review3DUrl}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 text-emerald-950 font-bold text-xs flex items-center gap-2 shadow-xl shadow-emerald-500/30 hover:brightness-110 active:scale-95 transition-all"
+                >
+                  <Box className="w-4 h-4" />
+                  <span>Review 3D 360° &amp; Bongkar</span>
+                </Link>
+              ) : (
+                <button
+                  onClick={() => onPreview(project)}
+                  className="px-4 py-2.5 rounded-xl bg-[#143525] border border-[#21543b] text-emerald-200 hover:text-white hover:bg-[#1a4430] font-semibold text-xs flex items-center gap-1.5 shadow-lg transition-all"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Rincian</span>
+                </button>
+              )}
             </div>
           </>
         )}
@@ -160,12 +199,27 @@ export function ProjectCard({ project, onPreview }: ProjectCardProps) {
           <span className="text-emerald-400/80 font-medium capitalize">
             {project.categorySlug.replace("-", " ")}
           </span>
-          <button
-            onClick={() => onPreview(project)}
-            className="text-emerald-300 hover:text-white font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-all"
-          >
-            Preview &rarr;
-          </button>
+
+          {is3D ? (
+            <Link
+              href={review3DUrl}
+              onClick={(e) => e.stopPropagation()}
+              className="text-cyan-300 hover:text-white font-semibold flex items-center gap-1.5 group-hover:translate-x-0.5 transition-all"
+            >
+              <span>Review 3D 360°</span>
+              <Box className="w-3.5 h-3.5" />
+            </Link>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPreview(project);
+              }}
+              className="text-emerald-300 hover:text-white font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-all"
+            >
+              Preview &rarr;
+            </button>
+          )}
         </div>
       </div>
     </motion.div>

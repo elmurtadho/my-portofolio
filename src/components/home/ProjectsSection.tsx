@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FolderGit2, Play, Box, Image as ImageIcon, ExternalLink, Sparkles, Filter, X, Palette, Film, Layout, Grid } from "lucide-react";
 import { ProjectItem, CategoryItem } from "@/lib/mock-data";
-import { ThreeDViewer } from "@/components/ui/ThreeDViewer";
 import { ProjectCard } from "@/components/ui/ProjectCard";
 
 interface ProjectsSectionProps {
@@ -13,8 +13,17 @@ interface ProjectsSectionProps {
 }
 
 export function ProjectsSection({ projects, categories }: ProjectsSectionProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("all");
   const [activeMediaModal, setActiveMediaModal] = useState<ProjectItem | null>(null);
+
+  const handlePreview = (project: ProjectItem) => {
+    if (project.mediaType === "model3d") {
+      router.push(`/karya-3d/${project.id}`);
+    } else {
+      setActiveMediaModal(project);
+    }
+  };
 
   const filteredProjects =
     activeTab === "all"
@@ -170,35 +179,6 @@ export function ProjectsSection({ projects, categories }: ProjectsSectionProps) 
           </span>
         </div>
 
-        {/* Integrated 3D Interactive Feature Showcase when 3D Modeling is active */}
-        {activeTab === "3d-modeling" && (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-10 p-6 rounded-2xl bg-[#091a12] border border-[#1e4835] shadow-2xl"
-          >
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#122e20] text-[11px] font-bold text-cyan-300 border border-[#20543a] mb-2">
-                  <Box className="w-3.5 h-3.5" />
-                  Live WebGL 3D Canvas
-                </span>
-                <h3 className="text-xl font-bold text-white">
-                  Eksplorasi Model 3D Interaktif Real-time
-                </h3>
-                <p className="text-xs sm:text-sm text-emerald-200/70 mt-1 max-w-xl">
-                  Gunakan kursor atau sentuhan untuk memutar 360°, zoom, mengganti geometri, dan memilih mode shader secara langsung di browser.
-                </p>
-              </div>
-            </div>
-            <ThreeDViewer
-              title="Interactive WebGL 3D Playground"
-              modelType="torus"
-              className="w-full"
-            />
-          </motion.div>
-        )}
-
         {/* Projects Animated Grid */}
         <motion.div
           layout
@@ -209,7 +189,7 @@ export function ProjectsSection({ projects, categories }: ProjectsSectionProps) 
               <ProjectCard
                 key={project.id}
                 project={project}
-                onPreview={setActiveMediaModal}
+                onPreview={handlePreview}
               />
             ))}
           </AnimatePresence>
@@ -226,10 +206,10 @@ export function ProjectsSection({ projects, categories }: ProjectsSectionProps) 
           </div>
         )}
 
-        {/* Media Preview Modal */}
+        {/* Media Preview Modal (for Video and Image projects) */}
         {activeMediaModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-            <div className={`relative w-full ${activeMediaModal.mediaType === "model3d" ? "max-w-4xl" : "max-w-2xl"} bg-[#0b1c14] border border-[#1e4b36] rounded-2xl overflow-hidden shadow-2xl p-6`}>
+            <div className="relative w-full max-w-2xl bg-[#0b1c14] border border-[#1e4b36] rounded-2xl overflow-hidden shadow-2xl p-6">
               <div className="flex items-center justify-between pb-4 border-b border-[#183a29] mb-4">
                 <div>
                   <h3 className="text-lg font-bold text-white">
@@ -257,14 +237,6 @@ export function ProjectsSection({ projects, categories }: ProjectsSectionProps) 
                       controls
                       autoPlay
                       className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : activeMediaModal.mediaType === "model3d" ? (
-                  <div className="w-full">
-                    <ThreeDViewer
-                      title={activeMediaModal.title}
-                      modelType={activeMediaModal.id % 2 === 0 ? "crystal" : "torus"}
-                      className="w-full border-none rounded-none"
                     />
                   </div>
                 ) : (

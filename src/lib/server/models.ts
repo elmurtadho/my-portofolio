@@ -52,6 +52,14 @@ export interface ProjectModel {
   thumbnailUrl: string;
   featured?: boolean;
   tags: string[];
+  modelKey?: "packaging-box" | "cyber-helmet" | "beverage-can";
+  client?: string;
+  year?: string;
+  software?: string[];
+  dimensions?: string;
+  materialSpecs?: string;
+  polyCount?: string;
+  conceptDetails?: string;
   order?: number;
   createdAt: string;
   updatedAt: string;

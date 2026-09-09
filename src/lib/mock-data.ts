@@ -41,6 +41,14 @@ export interface ProjectItem {
   thumbnailUrl: string;
   featured?: boolean;
   tags: string[];
+  modelKey?: "packaging-box" | "cyber-helmet" | "beverage-can";
+  client?: string;
+  year?: string;
+  software?: string[];
+  dimensions?: string;
+  materialSpecs?: string;
+  polyCount?: string;
+  conceptDetails?: string;
 }
 
 export interface ContactData {
@@ -98,7 +106,6 @@ export const initialSkills: SkillItem[] = [
   { id: 9, name: "Tailwind CSS & Frontend", level: 88, category: "Tech", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" },
 ];
 
-
 export const initialProjects: ProjectItem[] = [
   {
     id: 1,
@@ -135,14 +142,22 @@ export const initialProjects: ProjectItem[] = [
   },
   {
     id: 4,
-    title: "Mint Interactive Hologram Sphere",
-    description: "Eksplorasi model visual 3D interaktif yang dapat diputar, di-zoom, dan berinteraksi dengan kursor.",
+    title: "Luxury Cosmetic Packaging Box 3D",
+    description: "Desain kemasan box produk mewah dengan struktur lipatan custom, finishing soft-touch matte & gold foil, serta visualisasi 3D unboxing interaktif yang bisa dibongkar pasang.",
     categorySlug: "3d-modeling",
     mediaType: "model3d",
-    mediaUrl: "sphere-mesh",
-    thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+    mediaUrl: "packaging-box",
+    modelKey: "packaging-box",
+    thumbnailUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80",
     featured: true,
-    tags: ["Three.js", "Blender", "Interactive 3D"],
+    tags: ["Packaging Design", "Bisa Dibongkar", "Blender 3D", "Unboxing"],
+    client: "Élixir Botanique Paris",
+    year: "2024",
+    software: ["Blender 4.2 LTS", "Substance 3D Painter", "Three.js WebGL"],
+    dimensions: "105mm × 80mm × 195mm",
+    materialSpecs: "Art Carton 360gsm, Soft-Touch Matte Laminate, Spot UV Gold Foil",
+    polyCount: "18,420 Tris • 9,350 Vertices",
+    conceptDetails: "Dirancang dengan prinsip unboxing ergonomis di mana tutup atas membuka dengan mulus, flap pelindung samping terurai ke arah luar, dan wadah produk utama terangkat secara elegan.",
   },
   {
     id: 5,
@@ -157,14 +172,41 @@ export const initialProjects: ProjectItem[] = [
   },
   {
     id: 6,
-    title: "3D Cybernetic Helmet Concept",
-    description: "Model sci-fi helmet interaktif dengan shader mint metallic dan refleksi dinamis.",
+    title: "Cybernetic Helmet & Modular Visor Rig 3D",
+    description: "Model helm sci-fi futuristik dengan shader mint metallic dinamis, visor magnetik, dan struktur perakitan modular terurai (exploded view).",
     categorySlug: "3d-modeling",
     mediaType: "model3d",
-    mediaUrl: "helmet-mesh",
-    thumbnailUrl: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=600&q=80",
+    mediaUrl: "cyber-helmet",
+    modelKey: "cyber-helmet",
+    thumbnailUrl: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=800&q=80",
+    featured: true,
+    tags: ["Hard Surface", "Bisa Dibongkar", "Cyberpunk", "Procedural"],
+    client: "Aegis Cybernetics Tech",
+    year: "2024",
+    software: ["Blender 4.2 LTS", "ZBrush", "Three.js"],
+    dimensions: "320mm × 260mm × 290mm",
+    materialSpecs: "Carbon Fiber Composite, Anodized Titanium Mint, Nanotech Glass Visor",
+    polyCount: "34,800 Tris • 17,920 Vertices",
+    conceptDetails: "Struktur helm modular terbagi menjadi tempurung luar aerodinamis, visor optik ganda, pelindung rahang bawah, modul audio samping, dan bantalan shock-absorber internal.",
+  },
+  {
+    id: 7,
+    title: "Minimalist Beverage Can & Label Packaging 3D",
+    description: "Konsep kemasan kaleng minuman energi organik dengan detail material aluminium brushed, tab opener terpisah, dan label silinder 360 derajat yang dapat dibongkar.",
+    categorySlug: "3d-modeling",
+    mediaType: "model3d",
+    mediaUrl: "beverage-can",
+    modelKey: "beverage-can",
+    thumbnailUrl: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80",
     featured: false,
-    tags: ["3D Hard Surface", "Procedural", "WebGL"],
+    tags: ["Packaging 3D", "Bisa Dibongkar", "Can Mockup", "Aluminium"],
+    client: "MintPulse Energy Co.",
+    year: "2024",
+    software: ["Blender 4.2 LTS", "Adobe Illustrator", "Three.js"],
+    dimensions: "Diameter 66mm × Tinggi 155mm (330ml)",
+    materialSpecs: "Recyclable Matte Brushed Aluminium, Embossed Pull Tab, Tactile Ink Label",
+    polyCount: "14,200 Tris • 7,140 Vertices",
+    conceptDetails: "Eksplorasi kemasan kaleng ramping modern dengan sistem uncoupling antara penutup atas, ring pembuka, sleeve label printed, dan silinder aluminium primer.",
   },
 ];
 
