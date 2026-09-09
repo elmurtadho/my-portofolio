@@ -2,15 +2,24 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: ['/admin/:path*', '/api/admin/:path*', '/selfcrudcontent'],
 };
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public auth endpoints and pages
+  // Secret portal is public for login
+  if (pathname === '/selfcrudcontent') {
+    return NextResponse.next();
+  }
+
+  // Hide generic /admin/login by redirecting to /selfcrudcontent
+  if (pathname === '/admin/login') {
+    return NextResponse.redirect(new URL('/selfcrudcontent', request.url));
+  }
+
+  // Allow public auth endpoints and logout
   if (
-    pathname === '/admin/login' ||
     pathname === '/admin/logout' ||
     pathname === '/api/admin/auth' ||
     pathname === '/api/admin/login' ||
@@ -38,7 +47,7 @@ export function middleware(request: NextRequest) {
         { status: 401 }
       );
     }
-    const loginUrl = new URL('/admin/login', request.url);
+    const loginUrl = new URL('/selfcrudcontent', request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -52,8 +61,7 @@ export function middleware(request: NextRequest) {
         { status: 401 }
       );
     }
-    const loginUrl = new URL('/admin/login', request.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/selfcrudcontent', request.url));
   }
 
   const timestamp = parseInt(parts[0], 10);
@@ -66,8 +74,7 @@ export function middleware(request: NextRequest) {
       response.cookies.delete('mintfolio_admin_token');
       return response;
     }
-    const loginUrl = new URL('/admin/login', request.url);
-    const response = NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(new URL('/selfcrudcontent', request.url));
     response.cookies.delete('mintfolio_admin_token');
     return response;
   }

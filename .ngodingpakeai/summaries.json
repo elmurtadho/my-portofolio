@@ -392,6 +392,17 @@
       }
     ]
   },
+  "src/app/selfcrudcontent/page.tsx": {
+    "summary": "Halaman portal rahasia login admin mandiri untuk mengelola karya, keahlian, dan narasi portofolio.",
+    "sections": [
+      {
+        "symbol": "SelfCrudContentPortalPage",
+        "startLine": 20,
+        "endLine": 180,
+        "summary": "Komponen antarmuka form autentikasi admin dengan verifikasi email terdaftar dan kata sandi."
+      }
+    ]
+  },
   "src/components/admin/AdminLayoutClient.tsx": {
     "summary": "Komponen wrapper sisi klien untuk panel admin yang mengontrol status buka-tutup sidebar dan navigasi responsif."
   },

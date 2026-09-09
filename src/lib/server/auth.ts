@@ -2,8 +2,51 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
 export const ADMIN_COOKIE_NAME = 'mintfolio_admin_token';
+export const DEFAULT_ADMIN_EMAIL = 'almurtadha221103@gmail.com';
+export const ALLOWED_USERNAMES = [
+  'admin',
+  'elmurtadho',
+  'almurtadha221103@gmail.com',
+];
+
 const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD || 'mintfolio2026';
 const SESSION_SECRET = process.env.ADMIN_SECRET || 'mintfolio-secure-admin-secret-key-32chars';
+
+/**
+ * Validates if the username or email matches allowed admin identifiers.
+ */
+export function isValidAdminUsername(username?: string | null): boolean {
+  if (!username) return false;
+  const clean = username.trim().toLowerCase();
+  if (ALLOWED_USERNAMES.includes(clean)) return true;
+  if (process.env.ADMIN_EMAIL && clean === process.env.ADMIN_EMAIL.trim().toLowerCase()) return true;
+  return false;
+}
+
+/**
+ * Checks if the provided password matches the configured admin password or db setting.
+ */
+export async function verifyPasswordAsync(password: string): Promise<boolean> {
+  if (!password) return false;
+  try {
+    const { getDatabase } = await import('./db');
+    const db = await getDatabase();
+    if (db.settings && (db.settings as any).adminPassword) {
+      if (password === (db.settings as any).adminPassword) return true;
+    }
+  } catch {
+    // fallback
+  }
+  return password === DEFAULT_PASSWORD;
+}
+
+/**
+ * Synchronous fallback password check.
+ */
+export function verifyPassword(password: string): boolean {
+  if (!password) return false;
+  return password === DEFAULT_PASSWORD;
+}
 
 /**
  * Creates a deterministic or timed session token.
@@ -48,13 +91,6 @@ export function verifySessionToken(token: string | null | undefined): boolean {
   );
 }
 
-/**
- * Checks if the provided password matches the configured admin password.
- */
-export function verifyPassword(password: string): boolean {
-  if (!password) return false;
-  return password === DEFAULT_PASSWORD;
-}
 
 /**
  * Verifies if the incoming request has valid admin credentials

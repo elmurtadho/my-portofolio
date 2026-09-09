@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import {
-  verifyPassword,
+  verifyPasswordAsync,
+  isValidAdminUsername,
   generateSessionToken,
   isAuthenticatedAdmin,
   ADMIN_COOKIE_NAME,
+  DEFAULT_ADMIN_EMAIL,
 } from '@/lib/server/auth';
+import { getDatabase, saveDatabase } from '@/lib/server/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +21,10 @@ export async function GET(request: Request) {
     authenticated,
     user: authenticated
       ? {
-          username: "admin",
+          username: "elmurtadho",
+          email: DEFAULT_ADMIN_EMAIL,
           role: "Super Administrator",
-          name: "MintFolio Master",
+          name: "Ahmad Elmurtadho",
         }
       : null,
   });
@@ -34,17 +38,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { username, password } = body || {};
 
-    if (username && typeof username === 'string' && username.trim().toLowerCase() !== 'admin') {
+    if (username && !isValidAdminUsername(username)) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Nama pengguna admin tidak ditemukan.',
+          error: 'Nama pengguna atau email admin tidak ditemukan.',
         },
         { status: 401 }
       );
     }
 
-    if (!password || !verifyPassword(password)) {
+    const isPasswordValid = await verifyPasswordAsync(password);
+    if (!password || !isPasswordValid) {
       return NextResponse.json(
         {
           success: false,
@@ -61,9 +66,10 @@ export async function POST(request: Request) {
       message: 'Autentikasi admin berhasil.',
       token,
       user: {
-        username: 'admin',
+        username: username || 'elmurtadho',
+        email: DEFAULT_ADMIN_EMAIL,
         role: 'Super Administrator',
-        name: 'MintFolio Master',
+        name: 'Ahmad Elmurtadho',
       },
     });
 
@@ -85,6 +91,64 @@ export async function POST(request: Request) {
         success: false,
         error: error?.message || 'Terjadi kesalahan pada proses login admin',
       },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Update admin password.
+ */
+export async function PUT(request: Request) {
+  try {
+    const isAuth = await isAuthenticatedAdmin(request);
+    if (!isAuth) {
+      return NextResponse.json(
+        { success: false, error: 'Akses tidak sah. Silakan login terlebih dahulu.' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { currentPassword, newPassword } = body || {};
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return NextResponse.json(
+        { success: false, error: 'Kata sandi baru minimal harus 6 karakter.' },
+        { status: 400 }
+      );
+    }
+
+    const isCurrentValid = await verifyPasswordAsync(currentPassword);
+    if (!isCurrentValid) {
+      return NextResponse.json(
+        { success: false, error: 'Kata sandi saat ini tidak sesuai.' },
+        { status: 400 }
+      );
+    }
+
+    const db = await getDatabase();
+    if (!db.settings) {
+      db.settings = {
+        siteTitle: 'ElmurtadhosPortfolio',
+        adminEmail: DEFAULT_ADMIN_EMAIL,
+        theme: 'dark-mint',
+        maintenanceMode: false,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    (db.settings as any).adminPassword = newPassword;
+    db.settings.updatedAt = new Date().toISOString();
+    await saveDatabase(db);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Kata sandi admin berhasil diperbarui!',
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error?.message || 'Gagal mengubah kata sandi admin' },
       { status: 500 }
     );
   }

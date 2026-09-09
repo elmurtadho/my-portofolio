@@ -13,32 +13,59 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
 
-  if (pathname?.startsWith("/admin")) {
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/selfcrudcontent")) {
     return null;
   }
 
   useEffect(() => {
+    const sections = ["hero", "about", "skills", "projects", "contact"];
+
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
 
-      const sections = ["hero", "about", "skills", "projects", "contact"];
-      const scrollPosition = window.scrollY + 220;
+      // Check if near bottom of page (activate contact)
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 80
+      ) {
+        setActiveSection("contact");
+        return;
+      }
 
+      // Check which section is in view
+      let current = "hero";
       for (const section of sections) {
         const el = document.getElementById(section);
         if (el) {
-          const top = el.offsetTop;
-          const height = el.offsetHeight;
-          if (scrollPosition >= top && scrollPosition < top + height) {
-            setActiveSection(section);
-            break;
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 280) {
+            current = section;
           }
         }
       }
+      setActiveSection(current);
     };
-    window.addEventListener("scroll", handleScroll);
+
+    const handleHash = () => {
+      if (typeof window !== "undefined" && window.location.hash) {
+        const hash = window.location.hash.replace("#", "");
+        if (sections.includes(hash)) {
+          setActiveSection(hash);
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("hashchange", handleHash);
+
+    // Initial check
     handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    handleHash();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("hashchange", handleHash);
+    };
   }, []);
 
   const navLinks = [
@@ -111,6 +138,9 @@ export function Navbar() {
                 <a
                   key={link.href}
                   href={link.href}
+                  onClick={() => {
+                    setActiveSection(link.href.substring(1));
+                  }}
                   className={`relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 select-none ${
                     isActive
                       ? "text-emerald-950 font-bold"
@@ -133,9 +163,9 @@ export function Navbar() {
           {/* Right Action buttons */}
           <div className="hidden md:flex items-center gap-3">
             <Link
-              href="/admin"
-              className="p-2.5 text-emerald-300/60 hover:text-emerald-300 hover:bg-[#142d20] rounded-xl border border-transparent hover:border-[#1e4431] hover:scale-105 active:scale-95 transition-all duration-200"
-              title="Admin Panel"
+              href="/selfcrudcontent"
+              className="p-2.5 text-emerald-300/35 hover:text-emerald-300 hover:bg-[#142d20] rounded-xl border border-transparent hover:border-[#1e4431] hover:scale-105 active:scale-95 transition-all duration-200"
+              title="Portal"
             >
               <Shield className="w-4 h-4" />
             </Link>
@@ -150,9 +180,9 @@ export function Navbar() {
           {/* Mobile Hamburger */}
           <div className="flex items-center gap-2 md:hidden">
             <Link
-              href="/admin"
-              className="p-2 text-emerald-300/60 hover:text-emerald-300"
-              title="Admin Panel"
+              href="/selfcrudcontent"
+              className="p-2 text-emerald-300/35 hover:text-emerald-300"
+              title="Portal"
             >
               <Shield className="w-5 h-5" />
             </Link>
@@ -177,7 +207,10 @@ export function Navbar() {
                 <a
                   key={link.href}
                   href={link.href}
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    setActiveSection(link.href.substring(1));
+                    setIsOpen(false);
+                  }}
                   className={`px-4 py-3 text-base font-medium rounded-xl transition flex items-center justify-between ${
                     isActive
                       ? "bg-[#143324] text-emerald-300 font-bold border-l-4 border-emerald-400"

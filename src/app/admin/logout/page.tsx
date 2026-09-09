@@ -15,7 +15,7 @@ export default function AdminLogoutPage() {
         // ignore
       }
       setTimeout(() => {
-        router.replace("/admin/login");
+        router.replace("/selfcrudcontent");
       }, 600);
     };
 
