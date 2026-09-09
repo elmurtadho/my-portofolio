@@ -31,7 +31,7 @@ export function AboutSection({ about }: AboutSectionProps) {
   return (
     <section
       id="about"
-      className="relative py-24 bg-[#08140e] border-t border-b border-[#142d20] overflow-hidden"
+      className="relative py-24 bg-[#08140e] border-t border-b border-[#142d20] overflow-hidden scroll-mt-20"
     >
       {/* Background ambient glows */}
       <div className="absolute right-[-5%] top-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 blur-[130px] pointer-events-none" />

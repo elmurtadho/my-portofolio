@@ -4,8 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Sparkles, Shield } from "lucide-react";
-
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -26,24 +25,23 @@ export function Navbar() {
       // Check if near bottom of page (activate contact)
       if (
         window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - 80
+        document.documentElement.scrollHeight - 70
       ) {
         setActiveSection("contact");
         return;
       }
 
       // Check which section is in view
-      let current = "hero";
       for (const section of sections) {
         const el = document.getElementById(section);
         if (el) {
           const rect = el.getBoundingClientRect();
-          if (rect.top <= 280) {
-            current = section;
+          if (rect.top <= 220 && rect.bottom > 220) {
+            setActiveSection(section);
+            break;
           }
         }
       }
-      setActiveSection(current);
     };
 
     const handleHash = () => {
@@ -76,57 +74,67 @@ export function Navbar() {
     { label: "Kontak", href: "#contact" },
   ];
 
+  const scrollToSection = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    sectionId: string
+  ) => {
+    e.preventDefault();
+    setActiveSection(sectionId);
+    setIsOpen(false);
+    const el = document.getElementById(sectionId);
+    if (el) {
+      const yOffset = -75; // navbar height offset
+      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+      window.history.pushState(null, "", `#${sectionId}`);
+    }
+  };
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-[#070f0b]/85 backdrop-blur-lg border-b border-[#183427] shadow-lg shadow-black/40 py-3"
-          : "bg-transparent py-5"
+          ? "bg-[#070f0b]/90 backdrop-blur-xl border-b border-[#183427] shadow-lg shadow-black/40 py-2.5 sm:py-3"
+          : "bg-transparent py-3.5 sm:py-5"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
-          {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group relative select-none">
+          {/* Brand Logo - Compact & Designer Styled */}
+          <Link
+            href="/"
+            className="flex items-center gap-2 sm:gap-2.5 group relative select-none shrink-0"
+          >
             {/* Ambient Logo Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 via-teal-400/20 to-emerald-500/20 rounded-2xl blur-md opacity-40 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 via-teal-400/15 to-emerald-500/20 rounded-2xl blur-md opacity-30 group-hover:opacity-80 transition-opacity duration-500 pointer-events-none" />
 
             {/* Emblem Icon */}
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-400 to-emerald-500 p-[1.5px] shadow-lg shadow-emerald-500/25 group-hover:shadow-emerald-500/50 group-hover:scale-105 transition-all duration-300 flex items-center justify-center overflow-hidden">
-              <div className="w-full h-full bg-[#081710] rounded-[10.5px] flex items-center justify-center relative overflow-hidden">
+            <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-400 to-emerald-500 p-[1.5px] shadow-md shadow-emerald-500/20 group-hover:shadow-emerald-500/40 group-hover:scale-105 transition-all duration-300 flex items-center justify-center overflow-hidden shrink-0">
+              <div className="w-full h-full bg-[#081710] rounded-[9.5px] flex items-center justify-center relative overflow-hidden">
                 {/* Diagonal light sweep inside emblem */}
                 <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/35 to-transparent -skew-x-25 animate-shimmer-sweep pointer-events-none" />
-                <span className="font-designer font-black text-xl bg-gradient-to-br from-emerald-300 to-teal-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
+                <span className="font-designer font-black text-base sm:text-lg bg-gradient-to-br from-emerald-300 to-teal-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
                   E
                 </span>
-                <Sparkles className="w-2.5 h-2.5 text-emerald-300 absolute top-1 right-1 opacity-80 animate-pulse" />
+                <Sparkles className="w-2 h-2 text-emerald-300 absolute top-1 right-1 opacity-80 animate-pulse" />
               </div>
             </div>
 
-            {/* Typography Brand with Moving Light Shimmer */}
-            <div className="flex flex-col relative overflow-hidden py-0.5 pr-2">
-              {/* Moving light shimmer beam sweeping across text */}
-              <div
-                className="absolute inset-0 w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent -skew-x-25 pointer-events-none animate-shimmer-sweep z-20"
-                aria-hidden="true"
-              />
+            {/* Compact Brand Typography (Stacked to eliminate wide stretching) */}
+            <div className="flex flex-col justify-center leading-none">
+              <span className="font-designer font-extrabold text-[15px] sm:text-[17px] text-white tracking-tight group-hover:text-emerald-50 transition-colors drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]">
+                Elmurtadho
+              </span>
 
-              <div className="flex items-center font-designer font-extrabold text-lg sm:text-xl tracking-tight leading-none">
-                <span className="text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] transition-colors group-hover:text-emerald-50">
-                  Elmurtadho<span className="text-emerald-300">s</span>
-                </span>
-                <span className="relative bg-gradient-to-r from-emerald-400 via-teal-200 to-emerald-400 bg-clip-text text-transparent animate-text-luster ml-0.5 drop-shadow-[0_0_15px_rgba(52,211,153,0.4)]">
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="font-designer text-[10px] sm:text-[11px] font-bold tracking-[0.14em] uppercase bg-gradient-to-r from-emerald-400 via-teal-200 to-emerald-400 bg-clip-text text-transparent animate-text-luster">
                   Portfolio
                 </span>
-                <span className="relative flex h-2 w-2 ml-1.5 self-center">
+                <span className="relative flex h-1.5 w-1.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>
                 </span>
               </div>
-
-              <span className="text-[9px] tracking-[0.22em] text-emerald-300/75 uppercase font-medium mt-1 font-mono">
-                Visual &amp; Interactive Studio
-              </span>
             </div>
           </Link>
 
@@ -138,9 +146,7 @@ export function Navbar() {
                 <a
                   key={link.href}
                   href={link.href}
-                  onClick={() => {
-                    setActiveSection(link.href.substring(1));
-                  }}
+                  onClick={(e) => scrollToSection(e, link.href.substring(1))}
                   className={`relative px-4 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 select-none ${
                     isActive
                       ? "text-emerald-950 font-bold"
@@ -160,7 +166,7 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Right Action buttons */}
+          {/* Desktop Right Action buttons */}
           <div className="hidden md:flex items-center gap-3">
             <Link
               href="/selfcrudcontent"
@@ -171,69 +177,83 @@ export function Navbar() {
             </Link>
             <a
               href="#contact"
+              onClick={(e) => scrollToSection(e, "contact")}
               className="relative inline-flex items-center justify-center px-5 py-2 text-sm font-semibold text-emerald-950 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 hover:from-emerald-300 hover:to-teal-300 rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/50 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 cursor-pointer"
             >
               Hubungi Saya
             </a>
           </div>
 
-          {/* Mobile Hamburger */}
-          <div className="flex items-center gap-2 md:hidden">
-            <Link
-              href="/selfcrudcontent"
-              className="p-2 text-emerald-300/35 hover:text-emerald-300"
-              title="Portal"
-            >
-              <Shield className="w-5 h-5" />
-            </Link>
+          {/* Mobile Hamburger Toggle Button */}
+          <div className="flex items-center md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 text-emerald-200 hover:text-white rounded-lg bg-[#11241c] border border-[#1b3a2c] active:scale-95 transition"
-              aria-label="Toggle menu"
+              className="w-10 h-10 flex items-center justify-center text-emerald-200 hover:text-white rounded-xl bg-[#0f241a] border border-[#1b3e2c] active:scale-95 transition shadow-sm"
+              aria-label="Buka Menu"
             >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Drawer */}
-      {isOpen && (
-        <div className="md:hidden bg-[#0a1610]/95 backdrop-blur-2xl border-b border-[#1d3d2e] px-4 pt-3 pb-6 mt-2 animate-in slide-in-from-top duration-200">
-          <div className="flex flex-col gap-2">
-            {navLinks.map((link) => {
-              const isActive = activeSection === link.href.substring(1);
-              return (
+      {/* Mobile Drawer Menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="md:hidden bg-[#07130d]/95 backdrop-blur-2xl border-b border-[#183a29] px-4 pt-3 pb-6 mt-2 shadow-2xl shadow-black/80 max-h-[calc(100vh-5rem)] overflow-y-auto"
+          >
+            <div className="flex flex-col gap-1.5">
+              {navLinks.map((link) => {
+                const isActive = activeSection === link.href.substring(1);
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={(e) => scrollToSection(e, link.href.substring(1))}
+                    className={`px-4 py-3 text-sm font-medium rounded-xl transition-all flex items-center justify-between ${
+                      isActive
+                        ? "bg-[#133524] text-emerald-300 font-bold border-l-4 border-emerald-400 shadow-sm"
+                        : "text-emerald-100/80 hover:text-emerald-300 hover:bg-[#10291d]"
+                    }`}
+                  >
+                    <span>{link.label}</span>
+                    {isActive && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                    )}
+                  </a>
+                );
+              })}
+
+              <div className="pt-3 mt-1 border-t border-[#163324] flex flex-col gap-2.5">
                 <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => {
-                    setActiveSection(link.href.substring(1));
-                    setIsOpen(false);
-                  }}
-                  className={`px-4 py-3 text-base font-medium rounded-xl transition flex items-center justify-between ${
-                    isActive
-                      ? "bg-[#143324] text-emerald-300 font-bold border-l-4 border-emerald-400"
-                      : "text-emerald-100 hover:text-emerald-400 hover:bg-[#12281e]"
-                  }`}
+                  href="#contact"
+                  onClick={(e) => scrollToSection(e, "contact")}
+                  className="w-full text-center py-3 font-semibold text-sm text-emerald-950 bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 hover:from-emerald-300 hover:to-teal-200 active:scale-[0.99] rounded-xl shadow-md shadow-emerald-500/20 transition cursor-pointer"
                 >
-                  <span>{link.label}</span>
-                  {isActive && <span className="w-2 h-2 rounded-full bg-emerald-400" />}
+                  Hubungi Saya
                 </a>
-              );
-            })}
-            <div className="pt-3 border-t border-[#183628] flex flex-col gap-2">
-              <a
-                href="#contact"
-                onClick={() => setIsOpen(false)}
-                className="w-full text-center py-3 font-semibold text-emerald-950 bg-emerald-400 hover:bg-emerald-300 active:scale-[0.99] rounded-xl shadow-md transition"
-              >
-                Hubungi Saya
-              </a>
+
+                {/* Secret admin access in drawer */}
+                <div className="flex items-center justify-center pt-1">
+                  <Link
+                    href="/selfcrudcontent"
+                    onClick={() => setIsOpen(false)}
+                    className="inline-flex items-center gap-1.5 text-xs text-emerald-400/40 hover:text-emerald-300 py-1 transition"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Portal Admin</span>
+                  </Link>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

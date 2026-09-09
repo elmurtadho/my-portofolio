@@ -70,7 +70,7 @@ export function SkillsSection({ skills }: SkillsSectionProps) {
   return (
     <section
       id="skills"
-      className="relative py-24 bg-[#070f0b] overflow-hidden"
+      className="relative py-24 bg-[#070f0b] overflow-hidden scroll-mt-20"
     >
       {/* Background glowing gradient */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-emerald-500/5 blur-[160px] pointer-events-none" />

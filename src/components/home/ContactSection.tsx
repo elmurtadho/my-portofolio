@@ -52,7 +52,7 @@ export function ContactSection({ contact }: ContactSectionProps) {
   return (
     <section
       id="contact"
-      className="relative py-24 bg-[#070f0b] border-t border-[#132c1f] overflow-hidden"
+      className="relative py-24 bg-[#070f0b] border-t border-[#132c1f] overflow-hidden scroll-mt-20"
     >
       {/* Ambient background glows */}
       <div className="absolute left-[-10%] top-1/4 w-96 h-96 bg-emerald-500/5 blur-[140px] pointer-events-none" />

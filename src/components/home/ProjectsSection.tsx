@@ -52,7 +52,7 @@ export function ProjectsSection({ projects, categories }: ProjectsSectionProps) 
   return (
     <section
       id="projects"
-      className="relative py-24 bg-[#08150f] border-t border-[#153123] overflow-hidden"
+      className="relative py-24 bg-[#08150f] border-t border-[#153123] overflow-hidden scroll-mt-20"
     >
       {/* Background radial glows */}
       <div className="absolute left-1/4 top-1/3 w-96 h-96 bg-emerald-500/5 blur-[140px] pointer-events-none" />
