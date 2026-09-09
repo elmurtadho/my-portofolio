@@ -29,6 +29,12 @@
   "postcss.config.mjs": {
     "summary": "Konfigurasi PostCSS untuk mengaktifkan pemrosesan utilitas Tailwind CSS v4."
   },
+  "public/.gitkeep": {
+    "summary": "Berkas penanda gitkeep agar direktori aset statis publik tetap terlacak dalam version control."
+  },
+  "public/uploads/.gitkeep": {
+    "summary": "Berkas penanda gitkeep agar direktori berkas media unggahan pengguna tetap terlacak dalam version control."
+  },
   "README.md": {
     "summary": "Dokumentasi pengantar proyek MintFolio portofolio interaktif bertema dark mint green."
   },
