@@ -14,6 +14,11 @@ import {
   AdminSettingsModel,
 } from './models';
 import { runMigrations, CURRENT_SCHEMA_VERSION } from './migrations';
+import {
+  isTursoEnabled,
+  getTursoDatabase,
+  saveTursoDatabase,
+} from './turso';
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const DB_FILE = path.join(DATA_DIR, 'portfolio.json');
@@ -35,9 +40,32 @@ function ensureDataDir() {
 
 /**
  * Reads and initializes database with automated migration.
- * Checks memory cache -> /tmp file -> static .data/portfolio.json file.
+ * Checks Turso Cloud DB (if configured) -> memory cache -> /tmp file -> static .data/portfolio.json file.
  */
 export async function getDatabase(): Promise<DatabaseSchema> {
+  // 1. Turso Cloud DB: persistent edge SQLite across all Vercel serverless containers
+  if (isTursoEnabled()) {
+    try {
+      if (cachedDb) return cachedDb;
+
+      let baseline: DatabaseSchema;
+      try {
+        const raw = await fs.readFile(DB_FILE, 'utf-8');
+        baseline = runMigrations(JSON.parse(raw));
+      } catch {
+        baseline = runMigrations(null);
+      }
+
+      const tursoDb = await getTursoDatabase(baseline);
+      if (tursoDb) {
+        cachedDb = tursoDb;
+        return tursoDb;
+      }
+    } catch (err) {
+      console.error('[db] Turso read error, falling back to local storage:', err);
+    }
+  }
+
   if (cachedDb) {
     return cachedDb;
   }
@@ -95,6 +123,15 @@ export async function getDatabase(): Promise<DatabaseSchema> {
  */
 export async function saveDatabase(data: DatabaseSchema): Promise<void> {
   cachedDb = data;
+
+  // 1. Persist to Turso Cloud DB if configured
+  if (isTursoEnabled()) {
+    try {
+      await saveTursoDatabase(data);
+    } catch (err) {
+      console.error('[db] Turso save error:', err);
+    }
+  }
 
   // Always write to /tmp first (succeeds on Vercel Serverless)
   try {
