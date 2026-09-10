@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
+import { isTursoEnabled, saveTursoMedia } from './turso';
 
 export const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
 
@@ -51,17 +52,33 @@ export interface StoredFile {
 }
 
 export async function saveUploadedFile(file: File): Promise<StoredFile> {
-  ensureUploadsDir();
-
   const originalName = file.name;
   const safeName = sanitizeFilename(originalName);
-  const targetPath = path.join(UPLOADS_DIR, safeName);
-
+  const mediaType = detectMediaType(originalName, file.type);
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+  const mimeType = file.type || (mediaType === 'image' ? 'image/png' : 'application/octet-stream');
 
-  const mediaType = detectMediaType(originalName, file.type);
+  // 1. If Turso Cloud DB is active, persist directly to Turso portfolio_media table
+  if (isTursoEnabled()) {
+    try {
+      const media = await saveTursoMedia(originalName, mimeType, buffer);
+      return {
+        filename: media.filename,
+        url: media.url,
+        mediaType,
+        size: media.size,
+        originalName,
+        createdAt: new Date().toISOString(),
+      };
+    } catch (err) {
+      console.error('[storage] Failed to save media to Turso:', err);
+    }
+  }
 
+  // 2. Local filesystem if writable (development)
+  ensureUploadsDir();
+  const targetPath = path.join(UPLOADS_DIR, safeName);
   try {
     await fs.writeFile(targetPath, buffer);
     const url = `/uploads/${safeName}`;
@@ -75,8 +92,7 @@ export async function saveUploadedFile(file: File): Promise<StoredFile> {
       createdAt: new Date().toISOString(),
     };
   } catch {
-    // Read-only filesystem fallback (e.g. Vercel serverless environment)
-    const mimeType = file.type || (mediaType === 'image' ? 'image/png' : 'application/octet-stream');
+    // Read-only fallback
     const base64 = buffer.toString('base64');
     const dataUrl = `data:${mimeType};base64,${base64}`;
 

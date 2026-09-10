@@ -46,8 +46,6 @@ export async function getDatabase(): Promise<DatabaseSchema> {
   // 1. Turso Cloud DB: persistent edge SQLite across all Vercel serverless containers
   if (isTursoEnabled()) {
     try {
-      if (cachedDb) return cachedDb;
-
       let baseline: DatabaseSchema;
       try {
         const raw = await fs.readFile(DB_FILE, 'utf-8');
@@ -127,7 +125,8 @@ export async function saveDatabase(data: DatabaseSchema): Promise<void> {
   // 1. Persist to Turso Cloud DB if configured
   if (isTursoEnabled()) {
     try {
-      await saveTursoDatabase(data);
+      const saved = await saveTursoDatabase(data);
+      if (saved) return;
     } catch (err) {
       console.error('[db] Turso save error:', err);
     }

@@ -25,9 +25,11 @@ import {
   Filter,
   Eye,
   Sparkles,
+  Crop,
 } from "lucide-react";
 import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
 import { uploadMediaFile } from "@/lib/client/upload";
+import ImageCropModal from "@/components/admin/ImageCropModal";
 import {
   adminFetch,
   getLocalCache,
@@ -79,6 +81,8 @@ export default function AdminProjectsPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState("");
 
   const [tagInput, setTagInput] = useState("");
   const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
@@ -119,34 +123,20 @@ export default function AdminProjectsPage() {
         adminFetch("/api/admin/categories"),
       ]);
 
-      const serverProjects =
-        projRes.ok && projRes.data?.success && Array.isArray(projRes.data.data) && projRes.data.data.length > 0
-          ? projRes.data.data
-          : null;
-
-      const serverCats =
-        catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data) && catRes.data.data.length > 0
-          ? catRes.data.data
-          : null;
-
-      const { data: mergedProjects, needsServerSync: syncProj } = mergeOrSyncData<ProjectItem[]>(
-        CACHE_KEYS.PROJECTS,
-        serverProjects,
-        MOCK_PROJECTS_DATA
-      );
-      setProjects(mergedProjects);
-      if (syncProj) {
-        syncSectionToServer("projects", mergedProjects);
+      if (projRes.ok && projRes.data?.success && Array.isArray(projRes.data.data)) {
+        setProjects(projRes.data.data);
+        setLocalCache(CACHE_KEYS.PROJECTS, projRes.data.data, false);
+      } else {
+        const cached = getLocalCache<ProjectItem[]>(CACHE_KEYS.PROJECTS, MOCK_PROJECTS_DATA);
+        setProjects(cached);
       }
 
-      const { data: mergedCats, needsServerSync: syncCats } = mergeOrSyncData<CategoryItem[]>(
-        CACHE_KEYS.CATEGORIES,
-        serverCats,
-        MOCK_CATEGORIES_FALLBACK
-      );
-      setCategories(mergedCats);
-      if (syncCats) {
-        syncSectionToServer("categories", mergedCats);
+      if (catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data)) {
+        setCategories(catRes.data.data);
+        setLocalCache(CACHE_KEYS.CATEGORIES, catRes.data.data, false);
+      } else {
+        const cached = getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_FALLBACK);
+        setCategories(cached);
       }
     } catch {
       const cached = getLocalCache<ProjectItem[]>(CACHE_KEYS.PROJECTS, MOCK_PROJECTS_DATA);
@@ -215,9 +205,15 @@ export default function AdminProjectsPage() {
         thumbnailUrl: isImg ? result.url! : prev.thumbnailUrl,
       }));
       setInvalidFields((prev) => prev.filter((f) => f !== "mediaUrl"));
+
+      if (isImg) {
+        setImageToCrop(result.url!);
+        setCropModalOpen(true);
+      }
+
       setFeedback({
         type: "success",
-        message: `Berkas "${file.name}" berhasil diunggah!`,
+        message: `Berkas "${file.name}" berhasil diunggah!${isImg ? " Anda dapat menyesuaikan skala dan framing foto." : ""}`,
       });
       setTimeout(() => setFeedback(null), 3500);
     } else {
@@ -281,19 +277,12 @@ export default function AdminProjectsPage() {
           body: JSON.stringify(payload),
         });
         if (res.ok && res.data?.success) {
-          const updatedItem = res.data.data || { ...editingProject, ...payload };
-          const newProjects = projects.map((p) =>
-            p.id === editingProject.id ? updatedItem : p
-          );
-          setProjects(newProjects);
-          setLocalCache(CACHE_KEYS.PROJECTS, newProjects);
-          syncSectionToServer("projects", newProjects);
-
           setFeedback({
             type: "success",
-            message: `Karya "${payload.title}" berhasil diperbarui.`,
+            message: `Karya "${payload.title}" berhasil diperbarui di database Turso!`,
           });
           setModalOpen(false);
+          await fetchData();
         } else {
           setFeedback({
             type: "error",
@@ -306,20 +295,12 @@ export default function AdminProjectsPage() {
           body: JSON.stringify(payload),
         });
         if (res.ok && res.data?.success) {
-          const createdItem: ProjectItem = res.data.data || {
-            ...payload,
-            id: Date.now(),
-          };
-          const newProjects = [createdItem, ...projects];
-          setProjects(newProjects);
-          setLocalCache(CACHE_KEYS.PROJECTS, newProjects);
-          syncSectionToServer("projects", newProjects);
-
           setFeedback({
             type: "success",
-            message: `Karya "${payload.title}" berhasil ditambahkan.`,
+            message: `Karya "${payload.title}" berhasil ditambahkan ke database Turso!`,
           });
           setModalOpen(false);
+          await fetchData();
         } else {
           setFeedback({
             type: "error",
@@ -341,24 +322,20 @@ export default function AdminProjectsPage() {
     if (!confirm(`Hapus karya "${title}" dari portofolio?`)) return;
 
     setDeletingId(id);
-    const newProjects = projects.filter((p) => p.id !== id);
-    setProjects(newProjects);
-    setLocalCache(CACHE_KEYS.PROJECTS, newProjects);
-    syncSectionToServer("projects", newProjects);
-
     try {
       const res = await adminFetch(`/api/admin/projects/${id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
+      if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
-          message: `Karya "${title}" berhasil dihapus.`,
+          message: `Karya "${title}" berhasil dihapus dari database Turso.`,
         });
+        await fetchData();
       } else {
         setFeedback({
           type: "error",
-          message: res.error || "Gagal menghapus karya dari server.",
+          message: res.error || res.data?.error || "Gagal menghapus karya dari server.",
         });
       }
     } catch {
@@ -373,20 +350,16 @@ export default function AdminProjectsPage() {
 
   const toggleFeatured = async (proj: ProjectItem) => {
     const newFeatured = !proj.featured;
-    const newProjects = projects.map((p) =>
-      p.id === proj.id ? { ...p, featured: newFeatured } : p
-    );
-    setProjects(newProjects);
-    setLocalCache(CACHE_KEYS.PROJECTS, newProjects);
-    syncSectionToServer("projects", newProjects);
-
     try {
-      await adminFetch(`/api/admin/projects/${proj.id}`, {
+      const res = await adminFetch(`/api/admin/projects/${proj.id}`, {
         method: "PUT",
         body: JSON.stringify({ featured: newFeatured }),
       });
+      if (res.ok && res.data?.success) {
+        await fetchData();
+      }
     } catch {
-      // already saved locally
+      // ignore
     }
   };
 
@@ -1023,6 +996,21 @@ export default function AdminProjectsPage() {
                         </div>
                       )}
                     </div>
+                    {formData.mediaType === "image" && (
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageToCrop(formData.mediaUrl);
+                            setCropModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition"
+                        >
+                          <Crop className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Sesuaikan Skala & Framing Foto</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1139,6 +1127,28 @@ export default function AdminProjectsPage() {
           </div>
         </div>
       )}
+
+      {/* Interactive Scale & Crop Modal for Project Image */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        imageSrc={imageToCrop}
+        onClose={() => setCropModalOpen(false)}
+        onSave={(croppedDataUrl) => {
+          setFormData((prev) => ({
+            ...prev,
+            mediaUrl: croppedDataUrl,
+            thumbnailUrl: croppedDataUrl,
+          }));
+          setCropModalOpen(false);
+          setFeedback({
+            type: "success",
+            message: "Skala dan framing foto karya berhasil disesuaikan! Klik 'Simpan Karya' untuk menerapkan.",
+          });
+          setTimeout(() => setFeedback(null), 4000);
+        }}
+        aspectRatio="square"
+        title="Sesuaikan Skala & Framing Foto Karya"
+      />
     </div>
   );
 }

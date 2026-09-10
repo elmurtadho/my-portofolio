@@ -73,18 +73,12 @@ export default function AdminAboutPage() {
     setFeedback(null);
     try {
       const res = await adminFetch("/api/admin/about");
-      const serverData =
-        res.ok && res.data?.success && res.data?.data ? res.data.data : null;
-
-      const { data: finalAbout, needsServerSync } = mergeOrSyncData<typeof MOCK_ABOUT_DATA>(
-        CACHE_KEYS.ABOUT,
-        serverData,
-        MOCK_ABOUT_DATA
-      );
-
-      setFormData(finalAbout);
-      if (needsServerSync) {
-        syncSectionToServer("about", finalAbout);
+      if (res.ok && res.data?.success && res.data?.data) {
+        setFormData(res.data.data);
+        setLocalCache(CACHE_KEYS.ABOUT, res.data.data, false);
+      } else {
+        const cached = getLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA);
+        setFormData(cached);
       }
     } catch {
       const cached = getLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA);
@@ -135,13 +129,13 @@ export default function AdminAboutPage() {
       setCropModalOpen(true);
       setFeedback({
         type: "success",
-        message: `Foto "${file.name}" berhasil diunggah! Anda dapat menyesuaikan skala dan framing sebelum menyimpan.`,
+        message: `Foto ilustrasi "${file.name}" berhasil diunggah! Anda dapat menyesuaikan skala dan framing foto.`,
       });
       setTimeout(() => setFeedback(null), 5000);
     } else {
       setFeedback({
         type: "error",
-        message: result.error || "Gagal mengunggah gambar.",
+        message: result.error || "Gagal mengunggah foto ilustrasi.",
       });
     }
     setUploadingImage(false);
@@ -152,9 +146,9 @@ export default function AdminAboutPage() {
     e.preventDefault();
     setFeedback(null);
 
-    // Validation for "Belum Lengkap"
+    // Form completeness validation
     const missing: { key: string; label: string }[] = [];
-    if (!formData.bio.trim()) missing.push({ key: "bio", label: "Biografi Naratif Lengkap" });
+    if (!formData.bio.trim()) missing.push({ key: "bio", label: "Biografi / Narasi Singkat" });
     if (formData.experienceYears === undefined || formData.experienceYears < 0) {
       missing.push({ key: "experienceYears", label: "Tahun Pengalaman (angka >= 0)" });
     }
@@ -184,10 +178,6 @@ export default function AdminAboutPage() {
       completedProjects: Number(formData.completedProjects),
     };
 
-    // Save to local cache immediately
-    setLocalCache(CACHE_KEYS.ABOUT, payload);
-    syncSectionToServer("about", payload);
-
     try {
       const res = await adminFetch("/api/admin/about", {
         method: "PUT",
@@ -197,19 +187,20 @@ export default function AdminAboutPage() {
       if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
-          message: "Informasi Tentang Saya berhasil disimpan dan diperbarui di portofolio!",
+          message: "Informasi Tentang Saya berhasil disimpan dan diperbarui di database Turso!",
         });
+        await fetchAbout();
         setTimeout(() => setFeedback(null), 4500);
       } else {
         setFeedback({
-          type: "warning",
-          message: "Data tersimpan di penyimpanan lokal, sedang mencoba sinkronisasi server.",
+          type: "error",
+          message: res.error || res.data?.error || "Gagal menyimpan data Tentang Saya ke server.",
         });
       }
     } catch {
       setFeedback({
-        type: "warning",
-        message: "Data berhasil disimpan di browser Anda.",
+        type: "error",
+        message: "Terjadi kesalahan jaringan saat menyimpan data Tentang Saya.",
       });
     } finally {
       setSaving(false);

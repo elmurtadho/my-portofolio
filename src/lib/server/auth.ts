@@ -80,15 +80,20 @@ export function verifySessionToken(token: string | null | undefined): boolean {
     return false;
   }
 
-  const expectedSignature = crypto
-    .createHmac('sha256', SESSION_SECRET)
-    .update(timestampStr)
-    .digest('hex');
+  try {
+    const expectedSignature = crypto
+      .createHmac('sha256', SESSION_SECRET)
+      .update(timestampStr)
+      .digest('hex');
 
-  return crypto.timingSafeEqual(
-    Buffer.from(providedSignature),
-    Buffer.from(expectedSignature)
-  );
+    const pBuf = Buffer.from(providedSignature);
+    const eBuf = Buffer.from(expectedSignature);
+    if (pBuf.length !== eBuf.length) return false;
+
+    return crypto.timingSafeEqual(pBuf, eBuf);
+  } catch {
+    return false;
+  }
 }
 
 

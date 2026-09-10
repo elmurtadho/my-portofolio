@@ -18,6 +18,7 @@ import {
 
 import {
   getLocalCache,
+  setLocalCache,
   getLocalCacheInfo,
   CACHE_KEYS,
 } from "@/lib/client/admin-api";
@@ -82,25 +83,36 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
 
-    // 2. Fetch from server, but do not clobber user-edited sections
+    // 2. Fetch from server (Turso is authoritative)
     try {
       const res = await fetch("/api/content", { cache: "no-store" });
       const json = await res.json();
       if (res.ok && json.success && json.data) {
         const { profile: p, about: a, skills: s, categories: c, projects: pr, contact: ct } = json.data;
-        const pInfo = getLocalCacheInfo(CACHE_KEYS.PROFILE);
-        const aInfo = getLocalCacheInfo(CACHE_KEYS.ABOUT);
-        const sInfo = getLocalCacheInfo(CACHE_KEYS.SKILLS);
-        const cInfo = getLocalCacheInfo(CACHE_KEYS.CATEGORIES);
-        const prInfo = getLocalCacheInfo(CACHE_KEYS.PROJECTS);
-        const ctInfo = getLocalCacheInfo(CACHE_KEYS.CONTACT);
-
-        if (p && !pInfo.userEdited) setProfile((prev) => ({ ...prev, ...p }));
-        if (a && !aInfo.userEdited) setAbout((prev) => ({ ...prev, ...a }));
-        if (Array.isArray(s) && s.length > 0 && !sInfo.userEdited) setSkills(s);
-        if (Array.isArray(c) && c.length > 0 && !cInfo.userEdited) setCategories(c);
-        if (Array.isArray(pr) && pr.length > 0 && !prInfo.userEdited) setProjects(pr);
-        if (ct && !ctInfo.userEdited) setContact((prev) => ({ ...prev, ...ct }));
+        if (p) {
+          setProfile((prev) => ({ ...prev, ...p }));
+          setLocalCache(CACHE_KEYS.PROFILE, p, false);
+        }
+        if (a) {
+          setAbout((prev) => ({ ...prev, ...a }));
+          setLocalCache(CACHE_KEYS.ABOUT, a, false);
+        }
+        if (Array.isArray(s)) {
+          setSkills(s);
+          setLocalCache(CACHE_KEYS.SKILLS, s, false);
+        }
+        if (Array.isArray(c)) {
+          setCategories(c);
+          setLocalCache(CACHE_KEYS.CATEGORIES, c, false);
+        }
+        if (Array.isArray(pr)) {
+          setProjects(pr);
+          setLocalCache(CACHE_KEYS.PROJECTS, pr, false);
+        }
+        if (ct) {
+          setContact((prev) => ({ ...prev, ...ct }));
+          setLocalCache(CACHE_KEYS.CONTACT, ct, false);
+        }
       }
     } catch (err) {
       console.warn("Could not fetch latest content from API, using fallback data.", err);

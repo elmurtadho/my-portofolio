@@ -74,18 +74,12 @@ export default function AdminProfilePage() {
     setFeedback(null);
     try {
       const res = await adminFetch("/api/admin/profile");
-      const serverData =
-        res.ok && res.data?.success && res.data?.data ? res.data.data : null;
-
-      const { data: finalProfile, needsServerSync } = mergeOrSyncData<typeof MOCK_PROFILE_DATA>(
-        CACHE_KEYS.PROFILE,
-        serverData,
-        MOCK_PROFILE_DATA
-      );
-
-      setFormData(finalProfile);
-      if (needsServerSync) {
-        syncSectionToServer("profile", finalProfile);
+      if (res.ok && res.data?.success && res.data?.data) {
+        setFormData(res.data.data);
+        setLocalCache(CACHE_KEYS.PROFILE, res.data.data, false);
+      } else {
+        const cached = getLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA);
+        setFormData(cached);
       }
     } catch {
       const cached = getLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA);
@@ -173,10 +167,6 @@ export default function AdminProfilePage() {
     setInvalidFields([]);
     setSaving(true);
 
-    // Save to local cache immediately
-    setLocalCache(CACHE_KEYS.PROFILE, formData);
-    syncSectionToServer("profile", formData);
-
     try {
       const res = await adminFetch("/api/admin/profile", {
         method: "PUT",
@@ -186,19 +176,20 @@ export default function AdminProfilePage() {
       if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
-          message: "Data profil berhasil disimpan dan diperbarui di portofolio!",
+          message: "Data profil berhasil disimpan dan diperbarui di database Turso!",
         });
+        await fetchProfile();
         setTimeout(() => setFeedback(null), 4500);
       } else {
         setFeedback({
-          type: "warning",
-          message: "Profil tersimpan di penyimpanan lokal, sedang mencoba sinkronisasi server.",
+          type: "error",
+          message: res.error || res.data?.error || "Gagal menyimpan data profil ke database.",
         });
       }
     } catch {
       setFeedback({
-        type: "warning",
-        message: "Profil berhasil disimpan di browser Anda.",
+        type: "error",
+        message: "Terjadi kesalahan jaringan saat menyimpan profil.",
       });
     } finally {
       setSaving(false);

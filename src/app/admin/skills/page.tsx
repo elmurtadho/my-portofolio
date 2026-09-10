@@ -142,20 +142,12 @@ export default function AdminSkillsPage() {
     setLoading(true);
     try {
       const res = await adminFetch("/api/admin/skills");
-      const serverData =
-        res.ok && res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0
-          ? res.data.data
-          : null;
-
-      const { data: finalSkills, needsServerSync } = mergeOrSyncData<SkillItem[]>(
-        CACHE_KEYS.SKILLS,
-        serverData,
-        initialSkills
-      );
-
-      setSkills(finalSkills);
-      if (needsServerSync) {
-        syncSectionToServer("skills", finalSkills);
+      if (res.ok && res.data?.success && Array.isArray(res.data.data)) {
+        setSkills(res.data.data);
+        setLocalCache(CACHE_KEYS.SKILLS, res.data.data, false);
+      } else {
+        const cached = getLocalCache<SkillItem[]>(CACHE_KEYS.SKILLS, initialSkills);
+        setSkills(cached);
       }
     } catch {
       const cached = getLocalCache<SkillItem[]>(CACHE_KEYS.SKILLS, initialSkills);
@@ -266,19 +258,12 @@ export default function AdminSkillsPage() {
           body: JSON.stringify(formData),
         });
         if (res.ok && res.data?.success) {
-          const updatedItem = res.data.data || { ...editingSkill, ...formData };
-          const newSkills = skills.map((s) =>
-            s.id === editingSkill.id ? updatedItem : s
-          );
-          setSkills(newSkills);
-          setLocalCache(CACHE_KEYS.SKILLS, newSkills);
-          syncSectionToServer("skills", newSkills);
-
           setFeedback({
             type: "success",
-            message: `Keahlian "${formData.name}" berhasil diperbarui.`,
+            message: `Keahlian "${formData.name}" berhasil diperbarui di database Turso!`,
           });
           setModalOpen(false);
+          await fetchSkills();
         } else {
           setFeedback({
             type: "error",
@@ -292,20 +277,12 @@ export default function AdminSkillsPage() {
           body: JSON.stringify(formData),
         });
         if (res.ok && res.data?.success) {
-          const createdItem: SkillItem = res.data.data || {
-            ...formData,
-            id: Date.now(),
-          };
-          const newSkills = [...skills, createdItem];
-          setSkills(newSkills);
-          setLocalCache(CACHE_KEYS.SKILLS, newSkills);
-          syncSectionToServer("skills", newSkills);
-
           setFeedback({
             type: "success",
-            message: `Keahlian "${formData.name}" berhasil ditambahkan.`,
+            message: `Keahlian "${formData.name}" berhasil ditambahkan ke database Turso!`,
           });
           setModalOpen(false);
+          await fetchSkills();
         } else {
           setFeedback({
             type: "error",
@@ -329,11 +306,6 @@ export default function AdminSkillsPage() {
     }
 
     setDeletingId(id);
-    const newSkills = skills.filter((s) => s.id !== id);
-    setSkills(newSkills);
-    setLocalCache(CACHE_KEYS.SKILLS, newSkills);
-    syncSectionToServer("skills", newSkills);
-
     try {
       const res = await adminFetch(`/api/admin/skills/${id}`, {
         method: "DELETE",
@@ -341,8 +313,9 @@ export default function AdminSkillsPage() {
       if (res.ok) {
         setFeedback({
           type: "success",
-          message: `Keahlian "${name}" berhasil dihapus.`,
+          message: `Keahlian "${name}" berhasil dihapus dari database Turso.`,
         });
+        await fetchSkills();
       } else {
         setFeedback({
           type: "error",
@@ -367,15 +340,6 @@ export default function AdminSkillsPage() {
       icon: skill.icon,
     };
 
-    const localDuplicate: SkillItem = {
-      ...duplicateData,
-      id: Date.now(),
-    };
-    const newSkills = [...skills, localDuplicate];
-    setSkills(newSkills);
-    setLocalCache(CACHE_KEYS.SKILLS, newSkills);
-    syncSectionToServer("skills", newSkills);
-
     try {
       const res = await adminFetch("/api/admin/skills", {
         method: "POST",
@@ -384,11 +348,20 @@ export default function AdminSkillsPage() {
       if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
-          message: `Keahlian "${skill.name}" berhasil diduplikasi.`,
+          message: `Keahlian "${skill.name}" berhasil diduplikasi ke database Turso.`,
+        });
+        await fetchSkills();
+      } else {
+        setFeedback({
+          type: "error",
+          message: res.error || "Gagal menduplikasi keahlian.",
         });
       }
     } catch {
-      // already in state
+      setFeedback({
+        type: "error",
+        message: "Terjadi kesalahan saat menduplikasi keahlian.",
+      });
     }
   };
 

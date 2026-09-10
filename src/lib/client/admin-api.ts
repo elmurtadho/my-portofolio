@@ -215,24 +215,14 @@ export function mergeOrSyncData<T>(
   serverData: T | null,
   fallback: T
 ): { data: T; needsServerSync: boolean } {
-  const cache = getLocalCacheInfo<T>(key);
-
-  // If the user has explicitly edited this section locally in their browser:
-  if (cache.userEdited && cache.data !== null && cache.data !== undefined) {
-    if (!Array.isArray(cache.data) || cache.data.length > 0) {
-      return { data: cache.data, needsServerSync: true };
-    }
-  }
-
-  // Otherwise, if server returned valid non-empty data:
+  // 1. If server returned valid data from Turso/API, it is 100% authoritative
   if (serverData !== null && serverData !== undefined) {
-    if (!Array.isArray(serverData) || serverData.length > 0) {
-      setLocalCache(key, serverData, false);
-      return { data: serverData, needsServerSync: false };
-    }
+    setLocalCache(key, serverData, false);
+    return { data: serverData, needsServerSync: false };
   }
 
-  // Fall back to existing cached data if any
+  // 2. Only fall back to local cache if network/server is unreachable
+  const cache = getLocalCacheInfo<T>(key);
   if (cache.data !== null && cache.data !== undefined) {
     return { data: cache.data, needsServerSync: false };
   }

@@ -99,29 +99,19 @@ export async function uploadMediaFile(
       };
     }
 
-    // If server returned read-only or upload failed, use compressed data URL
-    if (compressedDataUrl) {
-      return {
-        success: true,
-        url: compressedDataUrl,
-        filename: processedFile.name,
-        mediaType: processedFile.type.startsWith("video/") ? "video" : "image",
-      };
-    }
+    const errorMessage =
+      data?.error ||
+      (res.status === 401
+        ? "Sesi admin berakhir atau belum login. Silakan login kembali."
+        : res.status === 413
+        ? "Ukuran berkas melebihi batas upload server."
+        : "Gagal mengunggah berkas ke server.");
 
     return {
       success: false,
-      error: data?.error || "Gagal mengunggah berkas ke server.",
+      error: errorMessage,
     };
   } catch (err: any) {
-    if (compressedDataUrl) {
-      return {
-        success: true,
-        url: compressedDataUrl,
-        filename: processedFile.name,
-        mediaType: processedFile.type.startsWith("video/") ? "video" : "image",
-      };
-    }
     return {
       success: false,
       error: err?.message || "Terjadi kendala jaringan saat mengunggah berkas.",

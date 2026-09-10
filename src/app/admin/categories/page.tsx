@@ -107,20 +107,12 @@ export default function AdminCategoriesPage() {
         adminFetch("/api/admin/projects"),
       ]);
 
-      const serverCats =
-        catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data) && catRes.data.data.length > 0
-          ? catRes.data.data
-          : null;
-
-      const { data: finalCats, needsServerSync } = mergeOrSyncData<CategoryItem[]>(
-        CACHE_KEYS.CATEGORIES,
-        serverCats,
-        MOCK_CATEGORIES_DATA
-      );
-
-      setCategories(finalCats);
-      if (needsServerSync) {
-        syncSectionToServer("categories", finalCats);
+      if (catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data)) {
+        setCategories(catRes.data.data);
+        setLocalCache(CACHE_KEYS.CATEGORIES, catRes.data.data, false);
+      } else {
+        const cached = getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_DATA);
+        setCategories(cached);
       }
 
       if (projRes.ok && projRes.data?.success && Array.isArray(projRes.data.data)) {
@@ -214,19 +206,12 @@ export default function AdminCategoriesPage() {
           body: JSON.stringify(payload),
         });
         if (res.ok && res.data?.success) {
-          const updatedItem = res.data.data || { ...editingCategory, ...payload };
-          const newCategories = categories.map((c) =>
-            c.id === editingCategory.id ? updatedItem : c
-          );
-          setCategories(newCategories);
-          setLocalCache(CACHE_KEYS.CATEGORIES, newCategories);
-          syncSectionToServer("categories", newCategories);
-
           setFeedback({
             type: "success",
-            message: `Kategori "${payload.name}" berhasil diperbarui.`,
+            message: `Kategori "${payload.name}" berhasil diperbarui di database Turso!`,
           });
           setModalOpen(false);
+          await fetchData();
         } else {
           setFeedback({
             type: "error",
@@ -239,20 +224,12 @@ export default function AdminCategoriesPage() {
           body: JSON.stringify(payload),
         });
         if (res.ok && res.data?.success) {
-          const createdItem: CategoryItem = res.data.data || {
-            ...payload,
-            id: Date.now(),
-          };
-          const newCategories = [...categories, createdItem];
-          setCategories(newCategories);
-          setLocalCache(CACHE_KEYS.CATEGORIES, newCategories);
-          syncSectionToServer("categories", newCategories);
-
           setFeedback({
             type: "success",
-            message: `Kategori "${payload.name}" berhasil ditambahkan.`,
+            message: `Kategori "${payload.name}" berhasil ditambahkan ke database Turso!`,
           });
           setModalOpen(false);
+          await fetchData();
         } else {
           setFeedback({
             type: "error",
@@ -286,24 +263,20 @@ export default function AdminCategoriesPage() {
     }
 
     setDeletingId(id);
-    const newCategories = categories.filter((c) => c.id !== id);
-    setCategories(newCategories);
-    setLocalCache(CACHE_KEYS.CATEGORIES, newCategories);
-    syncSectionToServer("categories", newCategories);
-
     try {
       const res = await adminFetch(`/api/admin/categories/${id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
+      if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
-          message: `Kategori "${name}" berhasil dihapus.`,
+          message: `Kategori "${name}" berhasil dihapus dari database Turso.`,
         });
+        await fetchData();
       } else {
         setFeedback({
           type: "error",
-          message: res.error || "Gagal menghapus kategori dari server.",
+          message: res.error || res.data?.error || "Gagal menghapus kategori dari server.",
         });
       }
     } catch {
