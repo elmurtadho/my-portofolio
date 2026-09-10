@@ -13,14 +13,19 @@ import {
   Layers,
   UploadCloud,
   Sparkles,
+  Crop,
+  Trash,
 } from "lucide-react";
 import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
 import { uploadMediaFile } from "@/lib/client/upload";
+import ImageCropModal from "@/components/admin/ImageCropModal";
 
 export default function AdminAboutPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState("");
   const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
   const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
@@ -28,7 +33,7 @@ export default function AdminAboutPage() {
     bio: "Saya adalah seorang desainer dan pengembang kreatif dengan spesialisasi dalam merancang antarmuka digital yang intuitif, visual branding yang kuat, serta pengalaman web 3D yang imersif. Memadukan estetika modern Dark Mint Green dengan performa kode kelas dunia untuk membantu brand dan klien mewujudkan visi digital mereka.",
     experienceYears: 5,
     completedProjects: 42,
-    imageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "",
     highlightPoints: [
       "Desain Antarmuka UI/UX Berbasis Data & Design System Komprehensif",
       "Spesialis Visual 3D WebGL & Interaktivitas Real-Time Three.js",
@@ -70,7 +75,7 @@ export default function AdminAboutPage() {
             Number(data.data.experienceYears) || MOCK_ABOUT_DATA.experienceYears,
           completedProjects:
             Number(data.data.completedProjects) || MOCK_ABOUT_DATA.completedProjects,
-          imageUrl: data.data.imageUrl || MOCK_ABOUT_DATA.imageUrl,
+          imageUrl: data.data.imageUrl ?? "",
           highlightPoints:
             Array.isArray(data.data.highlightPoints) &&
             data.data.highlightPoints.length > 0
@@ -124,11 +129,13 @@ export default function AdminAboutPage() {
         imageUrl: result.url!,
       }));
       setInvalidFields((prev) => prev.filter((f) => f !== "imageUrl"));
+      setImageToCrop(result.url!);
+      setCropModalOpen(true);
       setFeedback({
         type: "success",
-        message: `Foto "${file.name}" berhasil diunggah! Tekan "Simpan Perubahan" untuk menerapkan.`,
+        message: `Foto "${file.name}" berhasil diunggah! Anda dapat menyesuaikan skala dan framing sebelum menyimpan.`,
       });
-      setTimeout(() => setFeedback(null), 4500);
+      setTimeout(() => setFeedback(null), 5000);
     } else {
       setFeedback({
         type: "error",
@@ -146,7 +153,6 @@ export default function AdminAboutPage() {
     // Validation for "Belum Lengkap"
     const missing: { key: string; label: string }[] = [];
     if (!formData.bio.trim()) missing.push({ key: "bio", label: "Biografi Naratif Lengkap" });
-    if (!formData.imageUrl.trim()) missing.push({ key: "imageUrl", label: "Foto / Gambar Profil Tentang Saya" });
     if (formData.experienceYears === undefined || formData.experienceYears < 0) {
       missing.push({ key: "experienceYears", label: "Tahun Pengalaman (angka >= 0)" });
     }
@@ -405,9 +411,41 @@ export default function AdminAboutPage() {
                         onChange={handleImageUpload}
                       />
                     </label>
+
+                    {formData.imageUrl && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageToCrop(formData.imageUrl);
+                            setCropModalOpen(true);
+                          }}
+                          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 transition shrink-0"
+                          title="Sesuaikan zoom, rotasi, dan geser posisi foto"
+                        >
+                          <Crop className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Atur Skala Foto</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData((prev) => ({ ...prev, imageUrl: "" }));
+                            setFeedback({
+                              type: "success",
+                              message: "Foto berhasil dikosongkan. Tampilan akan menggunakan kartu visual portofolio.",
+                            });
+                          }}
+                          className="p-2 rounded-xl text-xs font-semibold bg-rose-950/40 hover:bg-rose-950 text-rose-400 border border-rose-900/50 transition shrink-0"
+                          title="Hapus foto"
+                        >
+                          <Trash className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                   <p className="text-[10px] text-emerald-500/60">
-                    Format gambar: JPG, PNG, WebP, SVG (Maks. 10MB). Unggah langsung atau tempelkan URL gambar.
+                    Format gambar: JPG, PNG, WebP, SVG (Maks. 10MB). Tekan &quot;Atur Skala Foto&quot; untuk zoom dan geser posisi foto.
                   </p>
                 </div>
               </div>
@@ -568,6 +606,23 @@ export default function AdminAboutPage() {
           </div>
         </div>
       </div>
+
+      {/* Interactive Scale & Crop Modal for About Photo */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        imageSrc={imageToCrop}
+        onClose={() => setCropModalOpen(false)}
+        onSave={(croppedDataUrl) => {
+          setFormData((prev) => ({ ...prev, imageUrl: croppedDataUrl }));
+          setFeedback({
+            type: "success",
+            message: "Skala dan framing foto Tentang Saya berhasil disesuaikan! Jangan lupa klik 'Simpan Perubahan' di bawah formulir.",
+          });
+        }}
+        aspectRatio="portrait"
+        title="Sesuaikan Skala & Framing Foto Tentang Saya"
+      />
     </div>
   );
 }
+

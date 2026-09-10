@@ -72,12 +72,12 @@ export const initialProfile: ProfileData = {
   ],
   greeting: "Halo, saya siap mewujudkan ide kreatif Anda.",
   tagline: "Memadukan estetika visual mutakhir, interaktivitas hidup, dan pengalaman digital berkelas tinggi.",
-  photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+  photoUrl: "",
 };
 
 export const initialAbout: AboutData = {
   bio: "Saya adalah desainer multidisiplin dan pengembang kreatif dengan gairah besar dalam merancang pengalaman digital yang memikat dan berkarakter. Berpengalaman dalam menciptakan identitas visual grafis, prototipe antarmuka UI/UX yang intuitif, visual motion video sinematik, hingga model 3D interaktif real-time di web.",
-  imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
+  imageUrl: "",
   experienceYears: 4,
   completedProjects: 48,
   satisfiedClients: 35,

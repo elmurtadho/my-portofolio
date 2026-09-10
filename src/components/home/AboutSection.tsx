@@ -10,6 +10,8 @@ interface AboutSectionProps {
 }
 
 export function AboutSection({ about }: AboutSectionProps) {
+  const [imageError, setImageError] = React.useState(false);
+
   const milestones = [
     {
       year: "2023 - Sekarang",
@@ -59,13 +61,46 @@ export function AboutSection({ about }: AboutSectionProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* Left Column: Image with Experience Badges */}
           <div className="lg:col-span-5 relative">
-            <div className="relative mx-auto max-w-md lg:max-w-none rounded-2xl overflow-hidden border border-[#1f4b36] shadow-2xl bg-[#0d1f16] group">
-              <img
-                src={about.imageUrl}
-                alt="Tentang Saya"
-                className="w-full h-[450px] object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#070f0b] via-[#070f0b]/30 to-transparent" />
+            <div className="relative mx-auto max-w-md lg:max-w-none rounded-2xl overflow-hidden border border-[#1f4b36] shadow-2xl bg-[#091a11] group min-h-[420px] flex items-center justify-center">
+              {about.imageUrl && !imageError ? (
+                <>
+                  <img
+                    src={about.imageUrl}
+                    alt="Tentang Saya"
+                    onError={() => setImageError(true)}
+                    className="w-full h-[450px] object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#070f0b] via-[#070f0b]/30 to-transparent pointer-events-none" />
+                </>
+              ) : (
+                <div className="w-full h-[450px] bg-gradient-to-br from-[#0b2418] via-[#071910] to-[#040e08] p-8 flex flex-col justify-between relative overflow-hidden select-none">
+                  <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold tracking-wider uppercase">
+                      Creative Visualist
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 relative z-10">
+                    <h3 className="text-2xl font-bold text-white tracking-tight font-designer">
+                      Ahmad Elmurtadho
+                    </h3>
+                    <p className="text-xs text-emerald-300/80 leading-relaxed">
+                      Multidisciplinary Designer &bull; UI/UX &bull; 3D &bull; Motion
+                    </p>
+                    <div className="pt-2 flex flex-wrap gap-1.5">
+                      {["Figma", "Blender", "Three.js", "After Effects"].map((tool) => (
+                        <span key={tool} className="px-2 py-0.5 rounded-md bg-[#0e2c1e] text-[10px] text-emerald-200 border border-emerald-500/20 font-medium">
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Floating Stat Badge */}
               <div className="absolute bottom-6 left-6 right-6 p-4 rounded-xl bg-[#091711]/90 backdrop-blur-md border border-[#1e4632] shadow-xl flex items-center justify-between">

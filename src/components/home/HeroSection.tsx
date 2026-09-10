@@ -10,6 +10,8 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ profile }: HeroSectionProps) {
+  const [imageError, setImageError] = React.useState(false);
+
   // Ensure we have a list of roles to rotate in typewriter
   const roleList =
     profile.roles && profile.roles.length > 0
@@ -148,13 +150,38 @@ export function HeroSection({ profile }: HeroSectionProps) {
 
               <div className="relative rounded-2xl bg-[#0b1c14] border border-[#1f4c37] p-6 shadow-2xl backdrop-blur-sm">
                 {/* Profile Image with mask & border */}
-                <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-5 border border-[#1a402e] group">
-                  <img
-                    src={profile.photoUrl}
-                    alt={profile.displayName}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0b1c14] via-transparent to-transparent opacity-50" />
+                <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-5 border border-[#1a402e] group bg-[#06140c] flex items-center justify-center">
+                  {profile.photoUrl && !imageError ? (
+                    <>
+                      <img
+                        src={profile.photoUrl}
+                        alt={profile.displayName}
+                        onError={() => setImageError(true)}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0b1c14] via-transparent to-transparent opacity-50 pointer-events-none" />
+                    </>
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#0c261b] via-[#081b12] to-[#040e08] flex flex-col items-center justify-center relative overflow-hidden group-hover:scale-105 transition-transform duration-500 select-none">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.18),transparent_70%)]" />
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-emerald-500/20 via-teal-500/25 to-emerald-400/20 border-2 border-emerald-500/40 flex items-center justify-center shadow-2xl relative">
+                        <span className="font-designer font-black text-4xl sm:text-5xl bg-gradient-to-br from-emerald-300 via-teal-200 to-emerald-400 bg-clip-text text-transparent">
+                          {profile.displayName
+                            ? profile.displayName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .slice(0, 2)
+                                .join("")
+                                .toUpperCase()
+                            : "AE"}
+                        </span>
+                        <Sparkles className="w-4 h-4 text-emerald-300 absolute top-2.5 right-2.5 animate-pulse" />
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-300/80 mt-3.5 tracking-wider uppercase">
+                        {profile.displayName || "Ahmad Elmurtadho"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick Info Box */}
