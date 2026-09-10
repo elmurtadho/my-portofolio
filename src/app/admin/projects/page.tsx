@@ -26,9 +26,12 @@ import {
   Eye,
   Sparkles,
   Crop,
+  Camera,
+  Layers,
+  Film,
 } from "lucide-react";
 import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
-import { uploadMediaFile } from "@/lib/client/upload";
+import { uploadMediaFile, captureVideoThumbnail, isVideoFile } from "@/lib/client/upload";
 import ImageCropModal from "@/components/admin/ImageCropModal";
 import {
   adminFetch,
@@ -80,9 +83,16 @@ export default function AdminProjectsPage() {
   const [editingProject, setEditingProject] = useState<ProjectItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStatusText, setUploadStatusText] = useState("");
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [cropTarget, setCropTarget] = useState<"media" | "thumbnail">("media");
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState("");
+
+  const mediaInputRef = React.useRef<HTMLInputElement | null>(null);
+  const thumbnailInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const [tagInput, setTagInput] = useState("");
   const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
@@ -155,12 +165,20 @@ export default function AdminProjectsPage() {
     setEditingProject(null);
     setInvalidFields([]);
     setFeedback(null);
+    setUploadProgress(null);
+    setUploadStatusText("");
     const defaultCat = categories[0]?.slug || "ui-ux";
+    const defaultMediaType: "image" | "video" | "model3d" = defaultCat.includes("video")
+      ? "video"
+      : defaultCat.includes("3d")
+      ? "model3d"
+      : "image";
+
     setFormData({
       title: "",
       description: "",
       categorySlug: defaultCat,
-      mediaType: "image",
+      mediaType: defaultMediaType,
       mediaUrl: "",
       thumbnailUrl: "",
       featured: false,
@@ -174,13 +192,15 @@ export default function AdminProjectsPage() {
     setEditingProject(proj);
     setInvalidFields([]);
     setFeedback(null);
+    setUploadProgress(null);
+    setUploadStatusText("");
     setFormData({
       title: proj.title,
       description: proj.description || "",
       categorySlug: proj.categorySlug,
       mediaType: proj.mediaType,
       mediaUrl: proj.mediaUrl,
-      thumbnailUrl: proj.thumbnailUrl,
+      thumbnailUrl: proj.thumbnailUrl || "",
       featured: Boolean(proj.featured),
       tags: Array.isArray(proj.tags) ? proj.tags : [],
     });
@@ -194,36 +214,146 @@ export default function AdminProjectsPage() {
 
     setUploading(true);
     setFeedback(null);
+    setUploadProgress(0);
+    setUploadStatusText(`Menyiapkan "${file.name}"...`);
 
-    const result = await uploadMediaFile(file, { maxSizeMB: 60 });
+    const isVideo = isVideoFile(file);
+    const maxMB = isVideo ? 250 : 100;
+
+    const result = await uploadMediaFile(file, {
+      maxSizeMB: maxMB,
+      onProgress: (percent, info) => {
+        setUploadProgress(percent);
+        setUploadStatusText(
+          `Mengunggah potongan ${info.current}/${info.total} (${percent}%) - ${(info.loadedBytes / (1024 * 1024)).toFixed(1)}MB / ${(info.totalBytes / (1024 * 1024)).toFixed(1)}MB`
+        );
+      },
+    });
+
     if (result.success && result.url) {
       const isImg = result.mediaType === "image";
+      const isVid = result.mediaType === "video" || isVideo;
+      const detectedType = isVid ? "video" : isImg ? "image" : "model3d";
+
       setFormData((prev) => ({
         ...prev,
         mediaUrl: result.url!,
-        mediaType: result.mediaType || prev.mediaType,
+        mediaType: detectedType,
         thumbnailUrl: isImg ? result.url! : prev.thumbnailUrl,
       }));
       setInvalidFields((prev) => prev.filter((f) => f !== "mediaUrl"));
 
       if (isImg) {
+        setCropTarget("media");
         setImageToCrop(result.url!);
         setCropModalOpen(true);
+      } else if (isVid && !formData.thumbnailUrl) {
+        // Otomatis ekstrak frame video untuk thumbnail jika belum ada
+        try {
+          const autoThumb = await captureVideoThumbnail(file, 1.0);
+          if (autoThumb) {
+            setFormData((prev) => ({
+              ...prev,
+              thumbnailUrl: prev.thumbnailUrl || autoThumb,
+            }));
+          }
+        } catch {
+          // ignore auto-capture error on initial upload
+        }
       }
 
       setFeedback({
         type: "success",
-        message: `Berkas "${file.name}" berhasil diunggah!${isImg ? " Anda dapat menyesuaikan skala dan framing foto." : ""}`,
+        message: `Berkas "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)}MB) berhasil diunggah!${
+          isImg ? " Anda dapat menyesuaikan skala dan framing foto." : isVid ? " Kapasitas video hingga 250MB didukung penuh." : ""
+        }`,
       });
-      setTimeout(() => setFeedback(null), 3500);
+      setTimeout(() => setFeedback(null), 4000);
     } else {
       setFeedback({
         type: "error",
         message: result.error || "Gagal mengunggah berkas.",
       });
     }
+
     setUploading(false);
+    setUploadProgress(null);
+    setUploadStatusText("");
     e.target.value = "";
+  };
+
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setThumbnailUploading(true);
+    setFeedback(null);
+
+    const result = await uploadMediaFile(file, {
+      maxSizeMB: 25,
+      allowedExtensions: [".png", ".jpg", ".jpeg", ".webp", ".svg"],
+    });
+
+    if (result.success && result.url) {
+      setFormData((prev) => ({
+        ...prev,
+        thumbnailUrl: result.url!,
+      }));
+
+      setCropTarget("thumbnail");
+      setImageToCrop(result.url!);
+      setCropModalOpen(true);
+
+      setFeedback({
+        type: "success",
+        message: `Thumbnail kustom "${file.name}" berhasil diunggah! Anda dapat menyesuaikan skala dan framing kartu.`,
+      });
+      setTimeout(() => setFeedback(null), 4000);
+    } else {
+      setFeedback({
+        type: "error",
+        message: result.error || "Gagal mengunggah thumbnail kustom.",
+      });
+    }
+
+    setThumbnailUploading(false);
+    e.target.value = "";
+  };
+
+  const handleExtractVideoFrame = async () => {
+    if (!formData.mediaUrl) {
+      setFeedback({
+        type: "warning",
+        message: "Unggah berkas video terlebih dahulu sebelum mengekstrak frame thumbnail.",
+      });
+      return;
+    }
+
+    setThumbnailUploading(true);
+    try {
+      const frameDataUrl = await captureVideoThumbnail(formData.mediaUrl, 1.2);
+      setFormData((prev) => ({
+        ...prev,
+        thumbnailUrl: frameDataUrl,
+      }));
+
+      setCropTarget("thumbnail");
+      setImageToCrop(frameDataUrl);
+      setCropModalOpen(true);
+
+      setFeedback({
+        type: "success",
+        message: "Frame video berhasil diambil sebagai thumbnail karya! Silakan atur framing/skala.",
+      });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err: any) {
+      setFeedback({
+        type: "error",
+        message: err?.message || "Gagal mengambil frame video. Pastikan video dapat diputar.",
+      });
+    } finally {
+      setThumbnailUploading(false);
+    }
   };
 
   const handleAddTag = () => {
@@ -901,116 +1031,343 @@ export default function AdminProjectsPage() {
                 </div>
               </div>
 
+              {/* Dynamic Capacity & Format Banner */}
+              {formData.mediaType === "video" ? (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-[#072517] to-[#041a10] border border-emerald-500/40 flex items-start gap-3 shadow-lg shadow-emerald-950/40">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5 border border-emerald-500/30">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-white text-sm">Kapasitas Khusus Video: Hingga 250MB</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-400 text-emerald-950 font-extrabold text-[10px] shadow">
+                        Chunked Multi-Part
+                      </span>
+                    </div>
+                    <p className="text-emerald-300/80 mt-1 leading-relaxed text-[11px]">
+                      Mendukung video resolusi tinggi (.mp4, .webm, .mov) hingga 250MB. Berkas diunggah secara bertahap dalam potongan terenkripsi langsung ke database Turso tanpa batasan payload serverless Vercel.
+                    </p>
+                  </div>
+                </div>
+              ) : formData.mediaType === "model3d" ? (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-teal-950/80 via-[#062424] to-[#031717] border border-teal-500/40 flex items-start gap-3 shadow-lg shadow-teal-950/40">
+                  <div className="p-2.5 rounded-xl bg-teal-500/20 text-teal-300 shrink-0 mt-0.5 border border-teal-500/30">
+                    <Box className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-white text-sm">Kapasitas Model 3D: Hingga 100MB</span>
+                      <span className="px-2 py-0.5 rounded-full bg-teal-400 text-teal-950 font-extrabold text-[10px] shadow">
+                        WebGL 360°
+                      </span>
+                    </div>
+                    <p className="text-teal-300/80 mt-1 leading-relaxed text-[11px]">
+                      Mendukung format berkas 3D .glb, .gltf, dan .obj untuk interaktif viewer dengan pencahayaan dan kontrol orbit 360 derajat.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-[#071910] border border-emerald-500/20 flex items-start gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0 mt-0.5">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white text-xs">Format Gambar: Hingga 35MB</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold text-[10px]">
+                        Auto-Compression
+                      </span>
+                    </div>
+                    <p className="text-emerald-400/70 mt-1 leading-relaxed text-[11px]">
+                      Mendukung gambar visual (.png, .jpg, .webp, .svg). Sistem secara otomatis mengoptimalkan kompresi untuk pemuatan kilat pada galeri.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Upload Real-time Progress Bar */}
+              {uploading && uploadProgress !== null && (
+                <div className="p-4 rounded-2xl bg-[#06170e] border border-emerald-500/40 space-y-2.5 shadow-xl animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-emerald-300 font-semibold flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                      <span>{uploadStatusText || "Mengunggah berkas ke server..."}</span>
+                    </span>
+                    <span className="font-mono text-emerald-400 font-bold text-sm">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full h-3 rounded-full bg-black/60 overflow-hidden border border-emerald-500/30 p-0.5">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 transition-all duration-300 shadow-[0_0_12px_rgba(52,211,153,0.5)]"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-emerald-400/60 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    <span>Upload chunked multi-part sedang berlangsung. Harap jangan menutup modal.</span>
+                  </p>
+                </div>
+              )}
+
               {/* Upload Direct Button */}
-              <div className="p-4 rounded-xl bg-[#050e08] border border-[#173a27] space-y-3">
+              <div className="p-4 rounded-2xl bg-[#050e08] border border-[#173a27] space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-emerald-200 flex items-center gap-1.5">
                     <Upload className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Unggah File Media / Model 3D Langsung</span>
+                    <span>Unggah File Media Utama</span>
                   </label>
-                  {uploading && (
-                    <span className="text-[11px] text-emerald-400 font-semibold animate-pulse">
-                      Mengunggah file...
-                    </span>
-                  )}
+                  <span className="text-[11px] text-emerald-400/80 font-mono">
+                    {formData.mediaType === "video" ? "Maks. 250MB" : formData.mediaType === "model3d" ? "Maks. 100MB" : "Maks. 35MB"}
+                  </span>
                 </div>
                 <input
                   type="file"
                   onChange={handleFileUpload}
-                  accept=".png,.jpg,.jpeg,.webp,.svg,.mp4,.webm,.glb,.gltf,.obj"
+                  accept={
+                    formData.mediaType === "video"
+                      ? ".mp4,.webm,.mov,.mkv,.avi,.m4v"
+                      : formData.mediaType === "model3d"
+                      ? ".glb,.gltf,.obj"
+                      : ".png,.jpg,.jpeg,.webp,.svg,.mp4,.webm,.glb,.gltf,.obj"
+                  }
                   disabled={uploading}
                   className="w-full text-xs text-emerald-300 file:mr-3 file:py-1.5 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-500 file:text-black hover:file:bg-emerald-400 cursor-pointer disabled:opacity-50"
                 />
                 <p className="text-[10px] text-emerald-500/60">
-                  Mendukung gambar (.png, .jpg, .webp), video (.mp4, .webm), dan model 3D WebGL (.glb, .gltf)
+                  {formData.mediaType === "video"
+                    ? "Mendukung MP4, WebM, MOV hingga 250MB dengan pemrosesan chunked otomatis."
+                    : formData.mediaType === "model3d"
+                    ? "Mendukung berkas 3D GLB, GLTF, OBJ hingga 100MB."
+                    : "Mendukung PNG, JPG, WebP, SVG (hingga 35MB)."}
                 </p>
               </div>
 
-              {/* Media URL & Thumbnail URL */}
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-emerald-200">
-                    URL Media Utama (File atau Link Eksternal)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.mediaUrl}
-                    onChange={(e) => {
-                      setFormData({ ...formData, mediaUrl: e.target.value });
-                      if (invalidFields.includes("mediaUrl")) {
-                        setInvalidFields((prev) => prev.filter((f) => f !== "mediaUrl"));
-                      }
-                    }}
-                    placeholder="https://... atau /uploads/..."
-                    className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-xs font-mono focus:outline-none transition ${
-                      invalidFields.includes("mediaUrl")
-                        ? "border-amber-500/80 ring-1 ring-amber-500/50"
-                        : "border-[#173a27] focus:border-emerald-400"
-                    }`}
-                  />
+              {/* Media URL Utama */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-emerald-200">
+                  URL Media Utama (Hasil Upload atau Link Eksternal)
+                </label>
+                <input
+                  type="text"
+                  value={formData.mediaUrl}
+                  onChange={(e) => {
+                    setFormData({ ...formData, mediaUrl: e.target.value });
+                    if (invalidFields.includes("mediaUrl")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "mediaUrl"));
+                    }
+                  }}
+                  placeholder="https://... atau /api/media/..."
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-xs font-mono focus:outline-none transition ${
+                    invalidFields.includes("mediaUrl")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
+                />
+              </div>
+
+              {/* Live Media Preview inside Modal */}
+              {formData.mediaUrl && (
+                <div className="p-3.5 rounded-2xl bg-[#06120b] border border-[#163826] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Pratinjau Media Utama</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-emerald-400/60 uppercase">
+                      {formData.mediaType}
+                    </span>
+                  </div>
+                  <div className="relative aspect-video max-h-48 rounded-xl overflow-hidden bg-black/50 flex items-center justify-center border border-[#143423]">
+                    {formData.mediaType === "image" ? (
+                      <img
+                        src={formData.mediaUrl}
+                        alt="Preview Media"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                    ) : formData.mediaType === "video" ? (
+                      <video
+                        src={formData.mediaUrl}
+                        controls
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-teal-300 p-4">
+                        <Box className="w-10 h-10 text-teal-400 mb-1 animate-pulse" />
+                        <span className="text-xs font-semibold">Model 3D Siap Dirender WebGL</span>
+                        <span className="text-[10px] text-emerald-400/60 font-mono truncate max-w-xs">{formData.mediaUrl}</span>
+                      </div>
+                    )}
+                  </div>
+                  {formData.mediaType === "image" && (
+                    <div className="pt-1 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCropTarget("media");
+                          setImageToCrop(formData.mediaUrl);
+                          setCropModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Sesuaikan Skala & Framing Foto Utama</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* DEDICATED CUSTOM THUMBNAIL SECTION */}
+              <div className="p-4 rounded-2xl bg-[#050e08] border border-[#1a4730] space-y-3.5 shadow-lg shadow-black/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div>
+                    <label className="text-xs font-bold text-white flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-emerald-400" />
+                      <span>Thumbnail / Poster Karya (Custom Thumbnail)</span>
+                      {formData.thumbnailUrl && formData.thumbnailUrl !== formData.mediaUrl ? (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                          Custom Aktif
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-[#112d1f] text-emerald-400/60 border border-emerald-500/10 text-[10px]">
+                          Default Media
+                        </span>
+                      )}
+                    </label>
+                    <p className="text-[11px] text-emerald-400/70 mt-0.5">
+                      Gambar sampul kartu karya pada halaman depan dan galeri portofolio.
+                    </p>
+                  </div>
+
+                  {/* Thumbnail Quick Actions */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Hidden file input for thumbnail */}
+                    <input
+                      type="file"
+                      ref={thumbnailInputRef}
+                      onChange={handleThumbnailUpload}
+                      accept=".png,.jpg,.jpeg,.webp"
+                      className="hidden"
+                    />
+
+                    {/* Impor Thumbnail Button */}
+                    <button
+                      type="button"
+                      onClick={() => thumbnailInputRef.current?.click()}
+                      disabled={thumbnailUploading || uploading}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-semibold border border-emerald-500/40 transition disabled:opacity-50"
+                      title="Unggah gambar thumbnail khusus (.png, .jpg, .webp)"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{thumbnailUploading ? "Mengunggah..." : "Impor Thumbnail"}</span>
+                    </button>
+
+                    {/* Ambil Frame dari Video (jika video) */}
+                    {(formData.mediaType === "video" || isVideoFile({ name: formData.mediaUrl, type: "" } as any)) && (
+                      <button
+                        type="button"
+                        onClick={handleExtractVideoFrame}
+                        disabled={!formData.mediaUrl || thumbnailUploading}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-semibold border border-amber-500/40 transition disabled:opacity-40"
+                        title="Ekstrak frame dari video untuk dijadikan thumbnail otomatis"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Ambil Frame Video</span>
+                      </button>
+                    )}
+
+                    {/* Sesuaikan Skala / Crop Thumbnail */}
+                    {formData.thumbnailUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCropTarget("thumbnail");
+                          setImageToCrop(formData.thumbnailUrl);
+                          setCropModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 text-xs font-semibold border border-teal-500/40 transition"
+                        title="Sesuaikan skala framing (16:10 landscape) untuk thumbnail kartu"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-teal-400" />
+                        <span>Sesuaikan Skala/Crop</span>
+                      </button>
+                    )}
+
+                    {/* Hapus / Reset Custom Thumbnail */}
+                    {formData.thumbnailUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            thumbnailUrl: prev.mediaType === "image" ? prev.mediaUrl : "",
+                          }));
+                          setFeedback({
+                            type: "warning",
+                            message: "Thumbnail kustom direset ke default.",
+                          });
+                          setTimeout(() => setFeedback(null), 2500);
+                        }}
+                        className="p-1.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-950/50 border border-rose-900/40 transition"
+                        title="Hapus thumbnail kustom"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-emerald-200">
-                    URL Thumbnail Poster (Opsional untuk video/3D)
-                  </label>
+                {/* Input URL Thumbnail Manual */}
+                <div className="space-y-1">
                   <input
                     type="text"
                     value={formData.thumbnailUrl}
-                    onChange={(e) =>
-                      setFormData({ ...formData, thumbnailUrl: e.target.value })
-                    }
-                    placeholder="Kosongkan jika sama dengan URL Media"
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-xs font-mono focus:outline-none focus:border-emerald-400 transition"
+                    onChange={(e) => setFormData({ ...formData, thumbnailUrl: e.target.value })}
+                    placeholder="URL Thumbnail (misal: /api/media/med-...png atau https://...)"
+                    className="w-full px-3.5 py-2 rounded-xl bg-[#081810] border border-[#173a27] text-white text-xs font-mono focus:outline-none focus:border-emerald-400 transition"
                   />
                 </div>
 
-                {/* Live Media Preview inside Modal */}
-                {formData.mediaUrl && (
-                  <div className="p-3 rounded-xl bg-[#06120b] border border-[#163826] space-y-2">
-                    <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5">
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Pratinjau Media Terpilih</span>
-                    </span>
-                    <div className="relative aspect-video max-h-44 rounded-lg overflow-hidden bg-black/40 flex items-center justify-center border border-[#143423]">
-                      {formData.mediaType === "image" ? (
-                        <img
-                          src={formData.mediaUrl}
-                          alt="Preview"
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = "none";
-                          }}
-                        />
-                      ) : formData.mediaType === "video" ? (
-                        <video
-                          src={formData.mediaUrl}
-                          controls
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-teal-300 p-4">
-                          <Box className="w-10 h-10 text-teal-400 mb-1 animate-pulse" />
-                          <span className="text-xs font-semibold">Model 3D Siap Dirender WebGL</span>
-                          <span className="text-[10px] text-emerald-400/60 font-mono truncate max-w-xs">{formData.mediaUrl}</span>
+                {/* Thumbnail Preview Card */}
+                {formData.thumbnailUrl ? (
+                  <div className="flex items-center gap-4 p-3 rounded-xl bg-[#081810] border border-[#173a27]">
+                    <div className="w-28 h-20 rounded-lg overflow-hidden bg-black/60 border border-emerald-500/30 shrink-0 relative">
+                      <img
+                        src={formData.thumbnailUrl}
+                        alt="Preview Thumbnail"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                      {formData.mediaType === "video" && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                          <Film className="w-4 h-4 text-emerald-400/90" />
                         </div>
                       )}
                     </div>
-                    {formData.mediaType === "image" && (
-                      <div className="pt-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImageToCrop(formData.mediaUrl);
-                            setCropModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition"
-                        >
-                          <Crop className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Sesuaikan Skala & Framing Foto</span>
-                        </button>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-white">Pratinjau Thumbnail Terpasang</p>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          16:10 Card Format
+                        </span>
                       </div>
-                    )}
+                      <p className="text-[10px] text-emerald-400/60 font-mono truncate">{formData.thumbnailUrl}</p>
+                      <p className="text-[10px] text-emerald-300/80">
+                        {formData.thumbnailUrl !== formData.mediaUrl
+                          ? "✓ Thumbnail kustom aktif. Gambar ini akan tampil sebagai sampul di kartu portofolio."
+                          : "Menggunakan berkas media utama sebagai thumbnail default."}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-[#081810]/60 border border-dashed border-[#173a27] text-center">
+                    <p className="text-[11px] text-emerald-400/50">
+                      Belum ada thumbnail khusus. Klik <strong>&quot;Impor Thumbnail&quot;</strong> atau <strong>&quot;Ambil Frame Video&quot;</strong> untuk memilih poster terbaik karya ini.
+                    </p>
                   </div>
                 )}
               </div>
@@ -1128,26 +1485,41 @@ export default function AdminProjectsPage() {
         </div>
       )}
 
-      {/* Interactive Scale & Crop Modal for Project Image */}
+      {/* Interactive Scale & Crop Modal for Project Image & Custom Thumbnail */}
       <ImageCropModal
         isOpen={cropModalOpen}
         imageSrc={imageToCrop}
         onClose={() => setCropModalOpen(false)}
         onSave={(croppedDataUrl) => {
-          setFormData((prev) => ({
-            ...prev,
-            mediaUrl: croppedDataUrl,
-            thumbnailUrl: croppedDataUrl,
-          }));
+          if (cropTarget === "thumbnail") {
+            setFormData((prev) => ({
+              ...prev,
+              thumbnailUrl: croppedDataUrl,
+            }));
+            setFeedback({
+              type: "success",
+              message: "Skala dan framing thumbnail kustom berhasil disesuaikan! Klik 'Simpan Karya' untuk menerapkan.",
+            });
+          } else {
+            setFormData((prev) => ({
+              ...prev,
+              mediaUrl: croppedDataUrl,
+              thumbnailUrl: prev.thumbnailUrl || croppedDataUrl,
+            }));
+            setFeedback({
+              type: "success",
+              message: "Skala dan framing foto karya berhasil disesuaikan! Klik 'Simpan Karya' untuk menerapkan.",
+            });
+          }
           setCropModalOpen(false);
-          setFeedback({
-            type: "success",
-            message: "Skala dan framing foto karya berhasil disesuaikan! Klik 'Simpan Karya' untuk menerapkan.",
-          });
           setTimeout(() => setFeedback(null), 4000);
         }}
-        aspectRatio="square"
-        title="Sesuaikan Skala & Framing Foto Karya"
+        aspectRatio={cropTarget === "thumbnail" ? "landscape" : "square"}
+        title={
+          cropTarget === "thumbnail"
+            ? "Sesuaikan Skala & Framing Thumbnail Poster (16:10 / Landscape)"
+            : "Sesuaikan Skala & Framing Foto Karya"
+        }
       />
     </div>
   );

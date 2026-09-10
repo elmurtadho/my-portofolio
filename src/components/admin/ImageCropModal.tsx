@@ -18,7 +18,7 @@ export interface ImageCropModalProps {
   imageSrc: string;
   onClose: () => void;
   onSave: (croppedDataUrl: string) => void;
-  aspectRatio?: "circle" | "portrait" | "square";
+  aspectRatio?: "circle" | "portrait" | "square" | "landscape";
   title?: string;
 }
 
@@ -61,7 +61,7 @@ export function ImageCropModal({
 
       // Auto calculate best initial fit
       const cw = 400;
-      const ch = aspectRatio === "portrait" ? 480 : 400;
+      const ch = aspectRatio === "portrait" ? 480 : aspectRatio === "landscape" ? 250 : 400;
       const scaleW = cw / img.width;
       const scaleH = ch / img.height;
       const bestFit = Math.max(scaleW, scaleH);
@@ -139,7 +139,7 @@ export function ImageCropModal({
 
     const cropSize = Math.min(width, height) - 40;
     const cropW = aspectRatio === "portrait" ? cropSize * 0.8 : cropSize;
-    const cropH = aspectRatio === "portrait" ? cropSize * 1.05 : cropSize;
+    const cropH = aspectRatio === "portrait" ? cropSize * 1.05 : aspectRatio === "landscape" ? Math.round(cropSize * 0.625) : cropSize;
     const cropX = (width - cropW) / 2;
     const cropY = (height - cropH) / 2;
 
@@ -246,7 +246,7 @@ export function ImageCropModal({
     // Export high resolution canvas
     const exportSize = 800;
     const exportW = aspectRatio === "portrait" ? 640 : exportSize;
-    const exportH = aspectRatio === "portrait" ? 840 : exportSize;
+    const exportH = aspectRatio === "portrait" ? 840 : aspectRatio === "landscape" ? 500 : exportSize;
 
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = exportW;
@@ -261,7 +261,7 @@ export function ImageCropModal({
 
     const cropSize = Math.min(mw, mh) - 40;
     const cropW = aspectRatio === "portrait" ? cropSize * 0.8 : cropSize;
-    const cropH = aspectRatio === "portrait" ? cropSize * 1.05 : cropSize;
+    const cropH = aspectRatio === "portrait" ? cropSize * 1.05 : aspectRatio === "landscape" ? Math.round(cropSize * 0.625) : cropSize;
     const cropX = (mw - cropW) / 2;
     const cropY = (mh - cropH) / 2;
 

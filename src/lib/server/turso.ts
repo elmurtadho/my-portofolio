@@ -49,6 +49,13 @@ export async function initTursoSchema(c: Client): Promise<void> {
       size INTEGER NOT NULL,
       created_at TEXT NOT NULL
     );`);
+    await c.execute(`CREATE TABLE IF NOT EXISTS portfolio_upload_chunks (
+      upload_id TEXT NOT NULL,
+      chunk_index INTEGER NOT NULL,
+      data BLOB NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (upload_id, chunk_index)
+    );`);
     isInitialized = true;
   } catch (err) {
     console.error('[turso] Failed to initialize tables:', err);
@@ -187,4 +194,87 @@ export async function getTursoMedia(
     console.error('[turso] Error reading media:', err);
     return null;
   }
+}
+
+/**
+ * Saves a single binary chunk during chunked upload.
+ */
+export async function saveTursoChunk(
+  uploadId: string,
+  chunkIndex: number,
+  buffer: Buffer
+): Promise<void> {
+  const c = getTursoClient();
+  if (!c) throw new Error('Turso client not configured');
+
+  await initTursoSchema(c);
+  const now = new Date().toISOString();
+
+  await c.execute({
+    sql: 'INSERT INTO portfolio_upload_chunks (upload_id, chunk_index, data, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(upload_id, chunk_index) DO UPDATE SET data = excluded.data',
+    args: [uploadId, chunkIndex, buffer, now],
+  });
+}
+
+/**
+ * Assembles all chunks of an upload into a permanent media file in portfolio_media.
+ */
+export async function assembleTursoChunks(
+  uploadId: string,
+  filename: string,
+  mimeType: string
+): Promise<{ id: string; url: string; filename: string; mimeType: string; size: number }> {
+  const c = getTursoClient();
+  if (!c) throw new Error('Turso client not configured');
+
+  await initTursoSchema(c);
+
+  const rs = await c.execute({
+    sql: 'SELECT data FROM portfolio_upload_chunks WHERE upload_id = ? ORDER BY chunk_index ASC',
+    args: [uploadId],
+  });
+
+  if (rs.rows.length === 0) {
+    throw new Error('No chunks found for upload ' + uploadId);
+  }
+
+  const buffers: Buffer[] = rs.rows.map((row) => {
+    const raw = row.data;
+    if (Buffer.isBuffer(raw)) return raw;
+    if (raw instanceof ArrayBuffer) return Buffer.from(raw);
+    if (typeof raw === 'string') return Buffer.from(raw, 'base64');
+    if (raw && typeof raw === 'object') return Buffer.from(raw as any);
+    return Buffer.from(String(raw || ''));
+  });
+
+  const fullBuffer = Buffer.concat(buffers);
+
+  // Save to portfolio_media
+  const cleanName = filename.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
+  const ext = cleanName.includes('.') ? cleanName.slice(cleanName.lastIndexOf('.')) : '';
+  const id = `med-${Date.now()}-${Math.random().toString(36).substring(2, 7)}${ext}`;
+  const now = new Date().toISOString();
+
+  await c.execute({
+    sql: 'INSERT INTO portfolio_media (id, filename, mime_type, data, size, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    args: [id, cleanName, mimeType, fullBuffer, fullBuffer.length, now],
+  });
+
+  // Cleanup chunks for this upload
+  try {
+    await c.execute({
+      sql: 'DELETE FROM portfolio_upload_chunks WHERE upload_id = ?',
+      args: [uploadId],
+    });
+  } catch {
+    // ignore
+  }
+
+  return {
+    id,
+    url: `/api/media/${id}`,
+    filename: cleanName,
+    mimeType,
+    size: fullBuffer.length,
+  };
 }
