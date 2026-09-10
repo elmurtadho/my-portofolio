@@ -12,6 +12,7 @@ import {
   Mail,
   Menu,
 } from "lucide-react";
+import { adminFetch } from "@/lib/client/admin-api";
 
 interface AdminLayoutClientProps {
   children: React.ReactNode;
@@ -35,8 +36,8 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
     // Check authentication
     const checkAuth = async () => {
       try {
-        const res = await fetch("/api/admin/auth");
-        const data = await res.json();
+        const res = await adminFetch("/api/admin/auth");
+        const data = res.data;
         const hasLocalDemo =
           typeof window !== "undefined" &&
           localStorage.getItem("mintfolio_admin_logged_in") === "true";
@@ -72,14 +73,10 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   useEffect(() => {
     // Fetch inquiries unread count
     if (!isLoginPage) {
-      fetch("/api/admin/inquiries")
+      adminFetch("/api/admin/inquiries")
         .then((res) => {
-          if (res.ok) return res.json();
-          return null;
-        })
-        .then((data) => {
-          if (data && data.success && Array.isArray(data.data)) {
-            const unread = data.data.filter((item: any) => !item.read).length;
+          if (res.ok && res.data?.success && Array.isArray(res.data.data)) {
+            const unread = res.data.data.filter((item: any) => !item.read).length;
             setUnreadCount(unread);
           }
         })

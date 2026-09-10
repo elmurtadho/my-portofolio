@@ -24,6 +24,7 @@ import {
   getLocalCache,
   setLocalCache,
   syncSectionToServer,
+  mergeOrSyncData,
   CACHE_KEYS,
 } from "@/lib/client/admin-api";
 
@@ -57,7 +58,7 @@ export default function AdminAboutPage() {
 
   const handleLoadMockData = () => {
     setFormData(MOCK_ABOUT_DATA);
-    setLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA);
+    setLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA, false);
     syncSectionToServer("about", MOCK_ABOUT_DATA);
     setInvalidFields([]);
     setFeedback({
@@ -72,23 +73,18 @@ export default function AdminAboutPage() {
     setFeedback(null);
     try {
       const res = await adminFetch("/api/admin/about");
-      if (res.ok && res.data?.success && res.data?.data) {
-        const d = res.data.data;
-        const merged = {
-          bio: d.bio || MOCK_ABOUT_DATA.bio,
-          experienceYears: Number(d.experienceYears) || MOCK_ABOUT_DATA.experienceYears,
-          completedProjects: Number(d.completedProjects) || MOCK_ABOUT_DATA.completedProjects,
-          imageUrl: d.imageUrl ?? "",
-          highlightPoints:
-            Array.isArray(d.highlightPoints) && d.highlightPoints.length > 0
-              ? d.highlightPoints
-              : MOCK_ABOUT_DATA.highlightPoints,
-        };
-        setFormData(merged);
-        setLocalCache(CACHE_KEYS.ABOUT, merged);
-      } else {
-        const cached = getLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA);
-        setFormData(cached);
+      const serverData =
+        res.ok && res.data?.success && res.data?.data ? res.data.data : null;
+
+      const { data: finalAbout, needsServerSync } = mergeOrSyncData<typeof MOCK_ABOUT_DATA>(
+        CACHE_KEYS.ABOUT,
+        serverData,
+        MOCK_ABOUT_DATA
+      );
+
+      setFormData(finalAbout);
+      if (needsServerSync) {
+        syncSectionToServer("about", finalAbout);
       }
     } catch {
       const cached = getLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA);

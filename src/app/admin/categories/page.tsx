@@ -23,6 +23,7 @@ import {
   getLocalCache,
   setLocalCache,
   syncSectionToServer,
+  mergeOrSyncData,
   CACHE_KEYS,
 } from "@/lib/client/admin-api";
 
@@ -89,7 +90,7 @@ export default function AdminCategoriesPage() {
 
   const handleLoadMockCategories = () => {
     setCategories(MOCK_CATEGORIES_DATA);
-    setLocalCache(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_DATA);
+    setLocalCache(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_DATA, false);
     syncSectionToServer("categories", MOCK_CATEGORIES_DATA);
     setFeedback({
       type: "success",
@@ -106,12 +107,20 @@ export default function AdminCategoriesPage() {
         adminFetch("/api/admin/projects"),
       ]);
 
-      if (catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data)) {
-        setCategories(catRes.data.data);
-        setLocalCache(CACHE_KEYS.CATEGORIES, catRes.data.data);
-      } else {
-        const cached = getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_DATA);
-        setCategories(cached);
+      const serverCats =
+        catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data) && catRes.data.data.length > 0
+          ? catRes.data.data
+          : null;
+
+      const { data: finalCats, needsServerSync } = mergeOrSyncData<CategoryItem[]>(
+        CACHE_KEYS.CATEGORIES,
+        serverCats,
+        MOCK_CATEGORIES_DATA
+      );
+
+      setCategories(finalCats);
+      if (needsServerSync) {
+        syncSectionToServer("categories", finalCats);
       }
 
       if (projRes.ok && projRes.data?.success && Array.isArray(projRes.data.data)) {

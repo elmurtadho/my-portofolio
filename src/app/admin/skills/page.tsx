@@ -33,6 +33,7 @@ import {
   getLocalCache,
   setLocalCache,
   syncSectionToServer,
+  mergeOrSyncData,
   CACHE_KEYS,
 } from "@/lib/client/admin-api";
 
@@ -128,7 +129,7 @@ export default function AdminSkillsPage() {
 
   const handleLoadMockData = () => {
     setSkills(initialSkills);
-    setLocalCache(CACHE_KEYS.SKILLS, initialSkills);
+    setLocalCache(CACHE_KEYS.SKILLS, initialSkills, false);
     syncSectionToServer("skills", initialSkills);
     setFeedback({
       type: "success",
@@ -141,15 +142,20 @@ export default function AdminSkillsPage() {
     setLoading(true);
     try {
       const res = await adminFetch("/api/admin/skills");
-      if (res.ok && res.data?.success && Array.isArray(res.data.data)) {
-        setSkills(res.data.data);
-        setLocalCache(CACHE_KEYS.SKILLS, res.data.data);
-      } else {
-        const cached = getLocalCache<SkillItem[]>(CACHE_KEYS.SKILLS, []);
-        if (cached.length > 0) {
-          setSkills(cached);
-          syncSectionToServer("skills", cached);
-        }
+      const serverData =
+        res.ok && res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0
+          ? res.data.data
+          : null;
+
+      const { data: finalSkills, needsServerSync } = mergeOrSyncData<SkillItem[]>(
+        CACHE_KEYS.SKILLS,
+        serverData,
+        initialSkills
+      );
+
+      setSkills(finalSkills);
+      if (needsServerSync) {
+        syncSectionToServer("skills", finalSkills);
       }
     } catch {
       const cached = getLocalCache<SkillItem[]>(CACHE_KEYS.SKILLS, initialSkills);

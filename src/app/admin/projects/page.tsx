@@ -33,6 +33,7 @@ import {
   getLocalCache,
   setLocalCache,
   syncSectionToServer,
+  mergeOrSyncData,
   CACHE_KEYS,
 } from "@/lib/client/admin-api";
 
@@ -96,11 +97,11 @@ export default function AdminProjectsPage() {
 
   const handleLoadMockProjects = () => {
     setProjects(MOCK_PROJECTS_DATA);
-    setLocalCache(CACHE_KEYS.PROJECTS, MOCK_PROJECTS_DATA);
+    setLocalCache(CACHE_KEYS.PROJECTS, MOCK_PROJECTS_DATA, false);
     syncSectionToServer("projects", MOCK_PROJECTS_DATA);
     if (categories.length === 0) {
       setCategories(MOCK_CATEGORIES_FALLBACK);
-      setLocalCache(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_FALLBACK);
+      setLocalCache(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_FALLBACK, false);
       syncSectionToServer("categories", MOCK_CATEGORIES_FALLBACK);
     }
     setFeedback({
@@ -118,23 +119,34 @@ export default function AdminProjectsPage() {
         adminFetch("/api/admin/categories"),
       ]);
 
-      if (projRes.ok && projRes.data?.success && Array.isArray(projRes.data.data)) {
-        setProjects(projRes.data.data);
-        setLocalCache(CACHE_KEYS.PROJECTS, projRes.data.data);
-      } else {
-        const cached = getLocalCache<ProjectItem[]>(CACHE_KEYS.PROJECTS, []);
-        if (cached.length > 0) {
-          setProjects(cached);
-          syncSectionToServer("projects", cached);
-        }
+      const serverProjects =
+        projRes.ok && projRes.data?.success && Array.isArray(projRes.data.data) && projRes.data.data.length > 0
+          ? projRes.data.data
+          : null;
+
+      const serverCats =
+        catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data) && catRes.data.data.length > 0
+          ? catRes.data.data
+          : null;
+
+      const { data: mergedProjects, needsServerSync: syncProj } = mergeOrSyncData<ProjectItem[]>(
+        CACHE_KEYS.PROJECTS,
+        serverProjects,
+        MOCK_PROJECTS_DATA
+      );
+      setProjects(mergedProjects);
+      if (syncProj) {
+        syncSectionToServer("projects", mergedProjects);
       }
 
-      if (catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data) && catRes.data.data.length > 0) {
-        setCategories(catRes.data.data);
-        setLocalCache(CACHE_KEYS.CATEGORIES, catRes.data.data);
-      } else {
-        const cachedCats = getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_FALLBACK);
-        setCategories(cachedCats);
+      const { data: mergedCats, needsServerSync: syncCats } = mergeOrSyncData<CategoryItem[]>(
+        CACHE_KEYS.CATEGORIES,
+        serverCats,
+        MOCK_CATEGORIES_FALLBACK
+      );
+      setCategories(mergedCats);
+      if (syncCats) {
+        syncSectionToServer("categories", mergedCats);
       }
     } catch {
       const cached = getLocalCache<ProjectItem[]>(CACHE_KEYS.PROJECTS, MOCK_PROJECTS_DATA);

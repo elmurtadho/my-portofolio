@@ -21,6 +21,7 @@ import {
   getLocalCache,
   setLocalCache,
   syncSectionToServer,
+  mergeOrSyncData,
   CACHE_KEYS,
 } from "@/lib/client/admin-api";
 
@@ -58,7 +59,7 @@ export default function AdminProfilePage() {
 
   const handleLoadMockData = () => {
     setFormData(MOCK_PROFILE_DATA);
-    setLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA);
+    setLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA, false);
     syncSectionToServer("profile", MOCK_PROFILE_DATA);
     setInvalidFields([]);
     setFeedback({
@@ -73,22 +74,18 @@ export default function AdminProfilePage() {
     setFeedback(null);
     try {
       const res = await adminFetch("/api/admin/profile");
-      if (res.ok && res.data?.success && res.data?.data) {
-        const d = res.data.data;
-        const merged = {
-          displayName: d.displayName || MOCK_PROFILE_DATA.displayName,
-          greeting: d.greeting || MOCK_PROFILE_DATA.greeting,
-          tagline: d.tagline || MOCK_PROFILE_DATA.tagline,
-          status: d.status || MOCK_PROFILE_DATA.status,
-          photoUrl: d.photoUrl ?? "",
-          bio: d.bio || MOCK_PROFILE_DATA.bio,
-          roles: Array.isArray(d.roles) && d.roles.length > 0 ? d.roles : MOCK_PROFILE_DATA.roles,
-        };
-        setFormData(merged);
-        setLocalCache(CACHE_KEYS.PROFILE, merged);
-      } else {
-        const cached = getLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA);
-        setFormData(cached);
+      const serverData =
+        res.ok && res.data?.success && res.data?.data ? res.data.data : null;
+
+      const { data: finalProfile, needsServerSync } = mergeOrSyncData<typeof MOCK_PROFILE_DATA>(
+        CACHE_KEYS.PROFILE,
+        serverData,
+        MOCK_PROFILE_DATA
+      );
+
+      setFormData(finalProfile);
+      if (needsServerSync) {
+        syncSectionToServer("profile", finalProfile);
       }
     } catch {
       const cached = getLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA);

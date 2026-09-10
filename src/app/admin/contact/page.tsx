@@ -25,6 +25,7 @@ import {
   getLocalCache,
   setLocalCache,
   syncSectionToServer,
+  mergeOrSyncData,
   CACHE_KEYS,
 } from "@/lib/client/admin-api";
 
@@ -73,7 +74,7 @@ export default function AdminContactPage() {
 
   const handleLoadMockContact = () => {
     setFormData(MOCK_CONTACT_DATA);
-    setLocalCache(CACHE_KEYS.CONTACT, MOCK_CONTACT_DATA);
+    setLocalCache(CACHE_KEYS.CONTACT, MOCK_CONTACT_DATA, false);
     syncSectionToServer("contact", MOCK_CONTACT_DATA);
     setFeedback({
       type: "success",
@@ -86,22 +87,18 @@ export default function AdminContactPage() {
     setLoading(true);
     try {
       const res = await adminFetch("/api/admin/contact");
-      if (res.ok && res.data?.success && res.data?.data) {
-        const d = res.data.data;
-        const merged = {
-          email: d.email || MOCK_CONTACT_DATA.email,
-          phone: d.phone || MOCK_CONTACT_DATA.phone,
-          location: d.location || MOCK_CONTACT_DATA.location,
-          socials:
-            Array.isArray(d.socials) && d.socials.length > 0
-              ? d.socials
-              : MOCK_CONTACT_DATA.socials,
-        };
-        setFormData(merged);
-        setLocalCache(CACHE_KEYS.CONTACT, merged);
-      } else {
-        const cached = getLocalCache(CACHE_KEYS.CONTACT, MOCK_CONTACT_DATA);
-        setFormData(cached);
+      const serverData =
+        res.ok && res.data?.success && res.data?.data ? res.data.data : null;
+
+      const { data: finalContact, needsServerSync } = mergeOrSyncData<typeof MOCK_CONTACT_DATA>(
+        CACHE_KEYS.CONTACT,
+        serverData,
+        MOCK_CONTACT_DATA
+      );
+
+      setFormData(finalContact);
+      if (needsServerSync) {
+        syncSectionToServer("contact", finalContact);
       }
     } catch {
       const cached = getLocalCache(CACHE_KEYS.CONTACT, MOCK_CONTACT_DATA);

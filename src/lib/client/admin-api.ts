@@ -141,8 +141,15 @@ export async function adminFetch(
   }
 }
 
+export interface CacheEnvelope<T> {
+  data: T;
+  updatedAt: number;
+  userEdited: boolean;
+}
+
 /**
  * Read item from localStorage with fallback.
+ * Transparently unwraps CacheEnvelope or plain raw values.
  */
 export function getLocalCache<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -150,6 +157,9 @@ export function getLocalCache<T>(key: string, fallback: T): T {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "data" in parsed && "updatedAt" in parsed) {
+      return (parsed as CacheEnvelope<T>).data;
+    }
     return parsed !== null && parsed !== undefined ? (parsed as T) : fallback;
   } catch {
     return fallback;
@@ -157,15 +167,77 @@ export function getLocalCache<T>(key: string, fallback: T): T {
 }
 
 /**
- * Save item to localStorage safely.
+ * Inspects cache metadata to check if the user made explicit edits in this browser.
  */
-export function setLocalCache<T>(key: string, value: T): void {
+export function getLocalCacheInfo<T>(key: string): { data: T | null; updatedAt: number; userEdited: boolean } {
+  if (typeof window === "undefined") return { data: null, updatedAt: 0, userEdited: false };
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return { data: null, updatedAt: 0, userEdited: false };
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "data" in parsed && "updatedAt" in parsed) {
+      return {
+        data: (parsed as CacheEnvelope<T>).data,
+        updatedAt: (parsed as CacheEnvelope<T>).updatedAt || 0,
+        userEdited: !!(parsed as CacheEnvelope<T>).userEdited,
+      };
+    }
+    return { data: parsed as T, updatedAt: 0, userEdited: false };
+  } catch {
+    return { data: null, updatedAt: 0, userEdited: false };
+  }
+}
+
+/**
+ * Save item to localStorage safely with userEdit flag.
+ */
+export function setLocalCache<T>(key: string, value: T, isUserEdit: boolean = true): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    const envelope: CacheEnvelope<T> = {
+      data: value,
+      updatedAt: Date.now(),
+      userEdited: isUserEdit,
+    };
+    localStorage.setItem(key, JSON.stringify(envelope));
   } catch (err) {
     console.warn(`[admin-api] Failed to save local cache for ${key}:`, err);
   }
+}
+
+/**
+ * Intelligently merges server response with local cache.
+ * If user has local edits, keeps local edits and signals that the server needs sync.
+ * Prevents cold serverless instances from reverting user-edited data on page refresh.
+ */
+export function mergeOrSyncData<T>(
+  key: string,
+  serverData: T | null,
+  fallback: T
+): { data: T; needsServerSync: boolean } {
+  const cache = getLocalCacheInfo<T>(key);
+
+  // If the user has explicitly edited this section locally in their browser:
+  if (cache.userEdited && cache.data !== null && cache.data !== undefined) {
+    if (!Array.isArray(cache.data) || cache.data.length > 0) {
+      return { data: cache.data, needsServerSync: true };
+    }
+  }
+
+  // Otherwise, if server returned valid non-empty data:
+  if (serverData !== null && serverData !== undefined) {
+    if (!Array.isArray(serverData) || serverData.length > 0) {
+      setLocalCache(key, serverData, false);
+      return { data: serverData, needsServerSync: false };
+    }
+  }
+
+  // Fall back to existing cached data if any
+  if (cache.data !== null && cache.data !== undefined) {
+    return { data: cache.data, needsServerSync: false };
+  }
+
+  return { data: fallback, needsServerSync: false };
 }
 
 /**
