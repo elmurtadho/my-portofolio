@@ -27,6 +27,14 @@ import {
 } from "lucide-react";
 import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
 import { uploadMediaFile } from "@/lib/client/upload";
+import { initialSkills } from "@/lib/mock-data";
+import {
+  adminFetch,
+  getLocalCache,
+  setLocalCache,
+  syncSectionToServer,
+  CACHE_KEYS,
+} from "@/lib/client/admin-api";
 
 interface SkillItem {
   id: number;
@@ -37,12 +45,13 @@ interface SkillItem {
   order?: number;
 }
 
-const DEFAULT_CATEGORIES = [
+export const DEFAULT_CATEGORIES = [
   "Semua",
-  "Design & UI/UX",
-  "3D & Creative",
-  "Video & Motion",
-  "Development",
+  "UI/UX",
+  "Design",
+  "3D",
+  "Video",
+  "Tech",
 ];
 
 const QUICK_LOGO_PRESETS = [
@@ -56,17 +65,6 @@ const QUICK_LOGO_PRESETS = [
   { name: "After Effects", url: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/aftereffects/aftereffects-plain.svg" },
   { name: "Premiere", url: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/premierepro/premierepro-plain.svg" },
   { name: "Illustrator", url: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/illustrator/illustrator-plain.svg" },
-];
-
-const MOCK_SKILLS_DATA: SkillItem[] = [
-  { id: 1, name: "Figma & UI Design System", level: 95, category: "Design & UI/UX", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg" },
-  { id: 2, name: "Blender 3D Modeling", level: 90, category: "3D & Creative", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/blender/blender-original.svg" },
-  { id: 3, name: "Three.js & WebGL Interactive", level: 85, category: "3D & Creative", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/threejs/threejs-original.svg" },
-  { id: 4, name: "Adobe After Effects & Motion", level: 88, category: "Video & Motion", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/aftereffects/aftereffects-plain.svg" },
-  { id: 5, name: "Adobe Premiere Pro Editing", level: 90, category: "Video & Motion", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/premierepro/premierepro-plain.svg" },
-  { id: 6, name: "Next.js & React App Router", level: 92, category: "Development", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg" },
-  { id: 7, name: "Tailwind CSS & Responsive Layout", level: 95, category: "Development", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" },
-  { id: 8, name: "Cinema 4D & Octane Render", level: 82, category: "3D & Creative", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/blender/blender-original.svg" },
 ];
 
 function renderAdminSkillIcon(icon?: string, fallbackCategory?: string) {
@@ -93,6 +91,9 @@ function renderAdminSkillIcon(icon?: string, fallbackCategory?: string) {
     case "video":
     case "video & motion":
       return <Video className="w-5 h-5 text-amber-400" />;
+    case "design":
+      return <Palette className="w-5 h-5 text-rose-400" />;
+    case "tech":
     case "development":
       return <Code2 className="w-5 h-5 text-teal-400" />;
     default:
@@ -101,7 +102,9 @@ function renderAdminSkillIcon(icon?: string, fallbackCategory?: string) {
 }
 
 export default function AdminSkillsPage() {
-  const [skills, setSkills] = useState<SkillItem[]>([]);
+  const [skills, setSkills] = useState<SkillItem[]>(() =>
+    getLocalCache<SkillItem[]>(CACHE_KEYS.SKILLS, initialSkills)
+  );
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
@@ -118,16 +121,18 @@ export default function AdminSkillsPage() {
 
   const [formData, setFormData] = useState({
     name: "",
-    level: 80,
-    category: "Design & UI/UX",
+    level: 85,
+    category: "UI/UX",
     icon: "",
   });
 
   const handleLoadMockData = () => {
-    setSkills(MOCK_SKILLS_DATA);
+    setSkills(initialSkills);
+    setLocalCache(CACHE_KEYS.SKILLS, initialSkills);
+    syncSectionToServer("skills", initialSkills);
     setFeedback({
       type: "success",
-      message: "Data keahlian tiruan (8 template skill dinamis) berhasil dimuat!",
+      message: "Data keahlian standar portofolio berhasil dimuat!",
     });
     setTimeout(() => setFeedback(null), 3500);
   };
@@ -135,18 +140,23 @@ export default function AdminSkillsPage() {
   const fetchSkills = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/skills");
-      const data = await res.json();
-      if (res.ok && data.success && Array.isArray(data.data) && data.data.length > 0) {
-        setSkills(data.data);
+      const res = await adminFetch("/api/admin/skills");
+      if (res.ok && res.data?.success && Array.isArray(res.data.data)) {
+        setSkills(res.data.data);
+        setLocalCache(CACHE_KEYS.SKILLS, res.data.data);
       } else {
-        setSkills(MOCK_SKILLS_DATA);
+        const cached = getLocalCache<SkillItem[]>(CACHE_KEYS.SKILLS, []);
+        if (cached.length > 0) {
+          setSkills(cached);
+          syncSectionToServer("skills", cached);
+        }
       }
     } catch {
-      setSkills(MOCK_SKILLS_DATA);
+      const cached = getLocalCache<SkillItem[]>(CACHE_KEYS.SKILLS, initialSkills);
+      setSkills(cached);
       setFeedback({
-        type: "error",
-        message: "Gagal memuat data keahlian dari server, memuat data tiruan lokal.",
+        type: "warning",
+        message: "Memuat data keahlian dari penyimpanan lokal.",
       });
     } finally {
       setLoading(false);
@@ -245,44 +255,55 @@ export default function AdminSkillsPage() {
     try {
       if (editingSkill) {
         // Update
-        const res = await fetch(`/api/admin/skills/${editingSkill.id}`, {
+        const res = await adminFetch(`/api/admin/skills/${editingSkill.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         });
-        const data = await res.json();
-        if (res.ok && data.success) {
+        if (res.ok && res.data?.success) {
+          const updatedItem = res.data.data || { ...editingSkill, ...formData };
+          const newSkills = skills.map((s) =>
+            s.id === editingSkill.id ? updatedItem : s
+          );
+          setSkills(newSkills);
+          setLocalCache(CACHE_KEYS.SKILLS, newSkills);
+          syncSectionToServer("skills", newSkills);
+
           setFeedback({
             type: "success",
             message: `Keahlian "${formData.name}" berhasil diperbarui.`,
           });
           setModalOpen(false);
-          fetchSkills();
         } else {
           setFeedback({
             type: "error",
-            message: data.error || "Gagal memperbarui keahlian.",
+            message: res.error || res.data?.error || "Gagal memperbarui keahlian.",
           });
         }
       } else {
         // Create
-        const res = await fetch("/api/admin/skills", {
+        const res = await adminFetch("/api/admin/skills", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         });
-        const data = await res.json();
-        if (res.ok && data.success) {
+        if (res.ok && res.data?.success) {
+          const createdItem: SkillItem = res.data.data || {
+            ...formData,
+            id: Date.now(),
+          };
+          const newSkills = [...skills, createdItem];
+          setSkills(newSkills);
+          setLocalCache(CACHE_KEYS.SKILLS, newSkills);
+          syncSectionToServer("skills", newSkills);
+
           setFeedback({
             type: "success",
             message: `Keahlian "${formData.name}" berhasil ditambahkan.`,
           });
           setModalOpen(false);
-          fetchSkills();
         } else {
           setFeedback({
             type: "error",
-            message: data.error || "Gagal menambahkan keahlian.",
+            message: res.error || res.data?.error || "Gagal menambahkan keahlian.",
           });
         }
       }
@@ -302,21 +323,24 @@ export default function AdminSkillsPage() {
     }
 
     setDeletingId(id);
+    const newSkills = skills.filter((s) => s.id !== id);
+    setSkills(newSkills);
+    setLocalCache(CACHE_KEYS.SKILLS, newSkills);
+    syncSectionToServer("skills", newSkills);
+
     try {
-      const res = await fetch(`/api/admin/skills/${id}`, {
+      const res = await adminFetch(`/api/admin/skills/${id}`, {
         method: "DELETE",
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok) {
         setFeedback({
           type: "success",
           message: `Keahlian "${name}" berhasil dihapus.`,
         });
-        setSkills((prev) => prev.filter((s) => s.id !== id));
       } else {
         setFeedback({
           type: "error",
-          message: data.error || "Gagal menghapus keahlian.",
+          message: res.error || "Gagal menghapus keahlian dari server.",
         });
       }
     } catch {
@@ -330,27 +354,35 @@ export default function AdminSkillsPage() {
   };
 
   const handleDuplicate = async (skill: SkillItem) => {
+    const duplicateData = {
+      name: `${skill.name} (Copy)`,
+      level: skill.level,
+      category: skill.category,
+      icon: skill.icon,
+    };
+
+    const localDuplicate: SkillItem = {
+      ...duplicateData,
+      id: Date.now(),
+    };
+    const newSkills = [...skills, localDuplicate];
+    setSkills(newSkills);
+    setLocalCache(CACHE_KEYS.SKILLS, newSkills);
+    syncSectionToServer("skills", newSkills);
+
     try {
-      const res = await fetch("/api/admin/skills", {
+      const res = await adminFetch("/api/admin/skills", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `${skill.name} (Copy)`,
-          level: skill.level,
-          category: skill.category,
-          icon: skill.icon,
-        }),
+        body: JSON.stringify(duplicateData),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
           message: `Keahlian "${skill.name}" berhasil diduplikasi.`,
         });
-        fetchSkills();
       }
     } catch {
-      // ignore
+      // already in state
     }
   };
 
@@ -593,10 +625,11 @@ export default function AdminSkillsPage() {
                       : "border-[#173a27] focus:border-emerald-400"
                   }`}
                 >
-                  <option value="Design & UI/UX">Design & UI/UX</option>
-                  <option value="3D & Creative">3D & Creative</option>
-                  <option value="Video & Motion">Video & Motion</option>
-                  <option value="Development">Development</option>
+                  <option value="UI/UX">UI/UX (Antarmuka Pengguna & Prototipe)</option>
+                  <option value="Design">Desain Grafis (Visual Branding & Ilustrasi)</option>
+                  <option value="3D">3D Visual (Modeling, Animasi & WebGL)</option>
+                  <option value="Video">Video Motion (Motion Graphic & Editing)</option>
+                  <option value="Tech">Teknologi Web (Frontend & Creative Code)</option>
                 </select>
               </div>
 

@@ -18,6 +18,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
+import {
+  adminFetch,
+  getLocalCache,
+  setLocalCache,
+  syncSectionToServer,
+  CACHE_KEYS,
+} from "@/lib/client/admin-api";
 
 interface CategoryItem {
   id: number;
@@ -60,7 +67,9 @@ const MOCK_CATEGORIES_DATA: CategoryItem[] = [
 ];
 
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>(() =>
+    getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_DATA)
+  );
   const [projectsCount, setProjectsCount] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
@@ -80,6 +89,8 @@ export default function AdminCategoriesPage() {
 
   const handleLoadMockCategories = () => {
     setCategories(MOCK_CATEGORIES_DATA);
+    setLocalCache(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_DATA);
+    syncSectionToServer("categories", MOCK_CATEGORIES_DATA);
     setFeedback({
       type: "success",
       message: "Data 4 kategori karya tiruan (Graphic Design, UI/UX, Video, 3D) berhasil dimuat!",
@@ -91,31 +102,31 @@ export default function AdminCategoriesPage() {
     setLoading(true);
     try {
       const [catRes, projRes] = await Promise.all([
-        fetch("/api/admin/categories"),
-        fetch("/api/admin/projects"),
+        adminFetch("/api/admin/categories"),
+        adminFetch("/api/admin/projects"),
       ]);
 
-      const catData = await catRes.json();
-      const projData = await projRes.json();
-
-      if (catRes.ok && catData.success && Array.isArray(catData.data) && catData.data.length > 0) {
-        setCategories(catData.data);
+      if (catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data)) {
+        setCategories(catRes.data.data);
+        setLocalCache(CACHE_KEYS.CATEGORIES, catRes.data.data);
       } else {
-        setCategories(MOCK_CATEGORIES_DATA);
+        const cached = getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_DATA);
+        setCategories(cached);
       }
 
-      if (projRes.ok && projData.success && Array.isArray(projData.data)) {
+      if (projRes.ok && projRes.data?.success && Array.isArray(projRes.data.data)) {
         const counts: Record<string, number> = {};
-        projData.data.forEach((p: any) => {
+        projRes.data.data.forEach((p: any) => {
           counts[p.categorySlug] = (counts[p.categorySlug] || 0) + 1;
         });
         setProjectsCount(counts);
       }
     } catch {
-      setCategories(MOCK_CATEGORIES_DATA);
+      const cached = getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_DATA);
+      setCategories(cached);
       setFeedback({
-        type: "error",
-        message: "Gagal memuat kategori dari server, memuat kategori tiruan.",
+        type: "warning",
+        message: "Memuat kategori dari penyimpanan lokal.",
       });
     } finally {
       setLoading(false);
@@ -189,43 +200,54 @@ export default function AdminCategoriesPage() {
 
     try {
       if (editingCategory) {
-        const res = await fetch(`/api/admin/categories/${editingCategory.id}`, {
+        const res = await adminFetch(`/api/admin/categories/${editingCategory.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const data = await res.json();
-        if (res.ok && data.success) {
+        if (res.ok && res.data?.success) {
+          const updatedItem = res.data.data || { ...editingCategory, ...payload };
+          const newCategories = categories.map((c) =>
+            c.id === editingCategory.id ? updatedItem : c
+          );
+          setCategories(newCategories);
+          setLocalCache(CACHE_KEYS.CATEGORIES, newCategories);
+          syncSectionToServer("categories", newCategories);
+
           setFeedback({
             type: "success",
             message: `Kategori "${payload.name}" berhasil diperbarui.`,
           });
           setModalOpen(false);
-          fetchData();
         } else {
           setFeedback({
             type: "error",
-            message: data.error || "Gagal memperbarui kategori.",
+            message: res.error || res.data?.error || "Gagal memperbarui kategori.",
           });
         }
       } else {
-        const res = await fetch("/api/admin/categories", {
+        const res = await adminFetch("/api/admin/categories", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const data = await res.json();
-        if (res.ok && data.success) {
+        if (res.ok && res.data?.success) {
+          const createdItem: CategoryItem = res.data.data || {
+            ...payload,
+            id: Date.now(),
+          };
+          const newCategories = [...categories, createdItem];
+          setCategories(newCategories);
+          setLocalCache(CACHE_KEYS.CATEGORIES, newCategories);
+          syncSectionToServer("categories", newCategories);
+
           setFeedback({
             type: "success",
             message: `Kategori "${payload.name}" berhasil ditambahkan.`,
           });
           setModalOpen(false);
-          fetchData();
         } else {
           setFeedback({
             type: "error",
-            message: data.error || "Gagal menambahkan kategori.",
+            message: res.error || res.data?.error || "Gagal menambahkan kategori.",
           });
         }
       }
@@ -255,21 +277,24 @@ export default function AdminCategoriesPage() {
     }
 
     setDeletingId(id);
+    const newCategories = categories.filter((c) => c.id !== id);
+    setCategories(newCategories);
+    setLocalCache(CACHE_KEYS.CATEGORIES, newCategories);
+    syncSectionToServer("categories", newCategories);
+
     try {
-      const res = await fetch(`/api/admin/categories/${id}`, {
+      const res = await adminFetch(`/api/admin/categories/${id}`, {
         method: "DELETE",
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok) {
         setFeedback({
           type: "success",
           message: `Kategori "${name}" berhasil dihapus.`,
         });
-        setCategories((prev) => prev.filter((c) => c.id !== id));
       } else {
         setFeedback({
           type: "error",
-          message: data.error || "Gagal menghapus kategori.",
+          message: res.error || "Gagal menghapus kategori dari server.",
         });
       }
     } catch {

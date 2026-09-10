@@ -73,7 +73,11 @@ export async function POST(request: Request) {
     const validation = validateProject(body);
     if (!validation.valid) {
       return NextResponse.json(
-        { success: false, errors: validation.errors },
+        {
+          success: false,
+          errors: validation.errors,
+          error: validation.errors?.join(', ') || 'Data proyek tidak valid',
+        },
         { status: 400 }
       );
     }
@@ -97,21 +101,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify category existence
+    // Verify category existence or resolve common alias
     const categories = await getCategories();
-    const cleanCategorySlug = String(categorySlug).trim().toLowerCase();
+    let cleanCategorySlug = String(categorySlug).trim().toLowerCase();
+
+    // Map common aliases
+    if (cleanCategorySlug === 'ui/ux' || cleanCategorySlug === 'uiux') cleanCategorySlug = 'ui-ux';
+    if (cleanCategorySlug === 'graphic' || cleanCategorySlug === 'desain-grafis') cleanCategorySlug = 'graphic-design';
+    if (cleanCategorySlug === 'video' || cleanCategorySlug === 'video-motion') cleanCategorySlug = 'video-editor';
+    if (cleanCategorySlug === '3d' || cleanCategorySlug === '3d-visual') cleanCategorySlug = '3d-modeling';
+
     const categoryExists = categories.some(
       (c) => c.slug.toLowerCase() === cleanCategorySlug
     );
 
-    if (!categoryExists) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Kategori '${categorySlug}' tidak ditemukan. Pilih kategori yang terdaftar atau buat kategori baru terlebih dahulu.`,
-        },
-        { status: 400 }
-      );
+    if (!categoryExists && categories.length > 0) {
+      // If categories exist in db, check if we can fall back to the first category
+      const fallback = categories[0].slug;
+      console.warn(`[projects] Category '${categorySlug}' not found, falling back to '${fallback}'`);
+      cleanCategorySlug = fallback;
     }
 
     const created = await createProject({

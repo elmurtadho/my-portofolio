@@ -29,6 +29,8 @@ export function ContactSection({ contact }: ContactSectionProps) {
     message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const handleCopy = (text: string, field: string) => {
@@ -37,14 +39,40 @@ export function ContactSection({ contact }: ContactSectionProps) {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.message) return;
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: "", email: "", subject: "", message: "" });
-    }, 4000);
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) return;
+
+    setSending(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          subject: formData.subject.trim() || "Pesan Portofolio Baru",
+          message: formData.message.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSubmitted(true);
+        setFormData({ name: "", email: "", subject: "", message: "" });
+        setTimeout(() => {
+          setSubmitted(false);
+        }, 5000);
+      } else {
+        setErrorMessage(data.error || (data.errors ? data.errors.join(", ") : "Gagal mengirimkan pesan. Silakan coba lagi."));
+      }
+    } catch {
+      setErrorMessage("Terjadi kendala koneksi saat mengirim pesan. Silakan hubungi langsung melalui email.");
+    } finally {
+      setSending(false);
+    }
   };
 
   const cleanPhone = contact.phone.replace(/[^0-9]/g, "");
@@ -315,12 +343,19 @@ export function ContactSection({ contact }: ContactSectionProps) {
                     />
                   </div>
 
+                  {errorMessage && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                      <span className="font-semibold">{errorMessage}</span>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm text-emerald-950 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 hover:from-emerald-300 hover:to-teal-300 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center justify-center gap-2"
+                    disabled={sending}
+                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-sm text-emerald-950 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 hover:from-emerald-300 hover:to-teal-300 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Send className="w-4 h-4" />
-                    <span>Kirim Pesan Sekarang</span>
+                    <Send className={`w-4 h-4 ${sending ? "animate-pulse" : ""}`} />
+                    <span>{sending ? "Mengirimkan Pesan..." : "Kirim Pesan Sekarang"}</span>
                   </button>
                 </form>
               )}

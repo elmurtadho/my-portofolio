@@ -14,6 +14,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+import { adminFetch, getLocalCache, setLocalCache, CACHE_KEYS } from "@/lib/client/admin-api";
+
 interface InquiryItem {
   id: string;
   name: string;
@@ -25,7 +27,9 @@ interface InquiryItem {
 }
 
 export default function AdminInquiriesPage() {
-  const [inquiries, setInquiries] = useState<InquiryItem[]>([]);
+  const [inquiries, setInquiries] = useState<InquiryItem[]>(() =>
+    getLocalCache<InquiryItem[]>(CACHE_KEYS.INQUIRIES, [])
+  );
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRead, setFilterRead] = useState<"all" | "unread" | "read">("all");
@@ -39,15 +43,20 @@ export default function AdminInquiriesPage() {
   const fetchInquiries = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/inquiries");
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setInquiries(data.data || []);
+      const res = await adminFetch("/api/admin/inquiries");
+      if (res.ok && res.data?.success && Array.isArray(res.data.data)) {
+        setInquiries(res.data.data);
+        setLocalCache(CACHE_KEYS.INQUIRIES, res.data.data);
+      } else {
+        const cached = getLocalCache<InquiryItem[]>(CACHE_KEYS.INQUIRIES, []);
+        if (cached.length > 0) setInquiries(cached);
       }
     } catch {
+      const cached = getLocalCache<InquiryItem[]>(CACHE_KEYS.INQUIRIES, []);
+      if (cached.length > 0) setInquiries(cached);
       setFeedback({
         type: "error",
-        message: "Gagal memuat pesan masuk.",
+        message: "Gagal memuat pesan masuk dari server.",
       });
     } finally {
       setLoading(false);
@@ -59,41 +68,41 @@ export default function AdminInquiriesPage() {
   }, []);
 
   const handleToggleRead = async (id: string, currentRead: boolean) => {
+    // Immediate UI update
+    const updated = inquiries.map((inq) =>
+      inq.id === id ? { ...inq, read: !currentRead } : inq
+    );
+    setInquiries(updated);
+    setLocalCache(CACHE_KEYS.INQUIRIES, updated);
+    if (selectedInquiry?.id === id) {
+      setSelectedInquiry((prev) => (prev ? { ...prev, read: !currentRead } : null));
+    }
+
     try {
-      const res = await fetch("/api/admin/inquiries", {
+      await adminFetch("/api/admin/inquiries", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, read: !currentRead }),
       });
-      if (res.ok) {
-        setInquiries((prev) =>
-          prev.map((inq) =>
-            inq.id === id ? { ...inq, read: !currentRead } : inq
-          )
-        );
-        if (selectedInquiry?.id === id) {
-          setSelectedInquiry((prev) =>
-            prev ? { ...prev, read: !currentRead } : null
-          );
-        }
-      }
     } catch {
-      // ignore
+      // already updated locally
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus pesan ini secara permanen?")) return;
 
+    const filtered = inquiries.filter((i) => i.id !== id);
+    setInquiries(filtered);
+    setLocalCache(CACHE_KEYS.INQUIRIES, filtered);
+    if (selectedInquiry?.id === id) {
+      setSelectedInquiry(null);
+    }
+
     try {
-      const res = await fetch(`/api/admin/inquiries?id=${id}`, {
+      const res = await adminFetch(`/api/admin/inquiries?id=${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        setInquiries((prev) => prev.filter((i) => i.id !== id));
-        if (selectedInquiry?.id === id) {
-          setSelectedInquiry(null);
-        }
         setFeedback({
           type: "success",
           message: "Pesan berhasil dihapus.",
@@ -103,7 +112,7 @@ export default function AdminInquiriesPage() {
     } catch {
       setFeedback({
         type: "error",
-        message: "Gagal menghapus pesan.",
+        message: "Gagal menghapus pesan dari server.",
       });
     }
   };

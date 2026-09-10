@@ -16,28 +16,15 @@ import {
 import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
 import { uploadMediaFile } from "@/lib/client/upload";
 import ImageCropModal from "@/components/admin/ImageCropModal";
+import {
+  adminFetch,
+  getLocalCache,
+  setLocalCache,
+  syncSectionToServer,
+  CACHE_KEYS,
+} from "@/lib/client/admin-api";
 
 export default function AdminProfilePage() {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [imageToCrop, setImageToCrop] = useState("");
-  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
-  const [invalidFields, setInvalidFields] = useState<string[]>([]);
-
-  const [formData, setFormData] = useState({
-    displayName: "",
-    greeting: "",
-    tagline: "",
-    status: "",
-    photoUrl: "",
-    bio: "",
-    roles: [] as string[],
-  });
-
-  const [newRoleInput, setNewRoleInput] = useState("");
-
   const MOCK_PROFILE_DATA = {
     displayName: "Ahmad Elmurtadho",
     greeting: "Halo, Saya",
@@ -55,8 +42,24 @@ export default function AdminProfilePage() {
     ],
   };
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState("");
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
+
+  const [formData, setFormData] = useState(() =>
+    getLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA)
+  );
+
+  const [newRoleInput, setNewRoleInput] = useState("");
+
   const handleLoadMockData = () => {
     setFormData(MOCK_PROFILE_DATA);
+    setLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA);
+    syncSectionToServer("profile", MOCK_PROFILE_DATA);
     setInvalidFields([]);
     setFeedback({
       type: "success",
@@ -69,23 +72,27 @@ export default function AdminProfilePage() {
     setLoading(true);
     setFeedback(null);
     try {
-      const res = await fetch("/api/admin/profile");
-      const data = await res.json();
-      if (res.ok && data.success && data.data) {
-        setFormData({
-          displayName: data.data.displayName || MOCK_PROFILE_DATA.displayName,
-          greeting: data.data.greeting || MOCK_PROFILE_DATA.greeting,
-          tagline: data.data.tagline || MOCK_PROFILE_DATA.tagline,
-          status: data.data.status || MOCK_PROFILE_DATA.status,
-          photoUrl: data.data.photoUrl ?? "",
-          bio: data.data.bio || MOCK_PROFILE_DATA.bio,
-          roles: Array.isArray(data.data.roles) && data.data.roles.length > 0 ? data.data.roles : MOCK_PROFILE_DATA.roles,
-        });
+      const res = await adminFetch("/api/admin/profile");
+      if (res.ok && res.data?.success && res.data?.data) {
+        const d = res.data.data;
+        const merged = {
+          displayName: d.displayName || MOCK_PROFILE_DATA.displayName,
+          greeting: d.greeting || MOCK_PROFILE_DATA.greeting,
+          tagline: d.tagline || MOCK_PROFILE_DATA.tagline,
+          status: d.status || MOCK_PROFILE_DATA.status,
+          photoUrl: d.photoUrl ?? "",
+          bio: d.bio || MOCK_PROFILE_DATA.bio,
+          roles: Array.isArray(d.roles) && d.roles.length > 0 ? d.roles : MOCK_PROFILE_DATA.roles,
+        };
+        setFormData(merged);
+        setLocalCache(CACHE_KEYS.PROFILE, merged);
       } else {
-        setFormData(MOCK_PROFILE_DATA);
+        const cached = getLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA);
+        setFormData(cached);
       }
     } catch {
-      setFormData(MOCK_PROFILE_DATA);
+      const cached = getLocalCache(CACHE_KEYS.PROFILE, MOCK_PROFILE_DATA);
+      setFormData(cached);
     } finally {
       setLoading(false);
     }
@@ -169,15 +176,17 @@ export default function AdminProfilePage() {
     setInvalidFields([]);
     setSaving(true);
 
+    // Save to local cache immediately
+    setLocalCache(CACHE_KEYS.PROFILE, formData);
+    syncSectionToServer("profile", formData);
+
     try {
-      const res = await fetch("/api/admin/profile", {
+      const res = await adminFetch("/api/admin/profile", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
           message: "Data profil berhasil disimpan dan diperbarui di portofolio!",
@@ -185,14 +194,14 @@ export default function AdminProfilePage() {
         setTimeout(() => setFeedback(null), 4500);
       } else {
         setFeedback({
-          type: "error",
-          message: data.error || "Gagal menyimpan perubahan profil ke server.",
+          type: "warning",
+          message: "Profil tersimpan di penyimpanan lokal, sedang mencoba sinkronisasi server.",
         });
       }
     } catch {
       setFeedback({
-        type: "error",
-        message: "Terjadi kesalahan jaringan saat menghubungi server.",
+        type: "warning",
+        message: "Profil berhasil disimpan di browser Anda.",
       });
     } finally {
       setSaving(false);

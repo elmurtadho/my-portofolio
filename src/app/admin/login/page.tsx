@@ -58,6 +58,17 @@ export default function AdminLoginPage() {
       }
 
       setSuccess(true);
+      if (typeof window !== "undefined") {
+        if (data.token) {
+          try {
+            const { setAdminToken } = await import("@/lib/client/admin-api");
+            setAdminToken(data.token);
+          } catch {
+            localStorage.setItem("mintfolio_admin_token", data.token);
+          }
+        }
+        localStorage.setItem("mintfolio_admin_logged_in", "true");
+      }
       setTimeout(() => {
         router.push("/admin");
       }, 700);

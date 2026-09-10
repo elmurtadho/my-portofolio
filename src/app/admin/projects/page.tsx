@@ -28,6 +28,13 @@ import {
 } from "lucide-react";
 import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
 import { uploadMediaFile } from "@/lib/client/upload";
+import {
+  adminFetch,
+  getLocalCache,
+  setLocalCache,
+  syncSectionToServer,
+  CACHE_KEYS,
+} from "@/lib/client/admin-api";
 
 interface ProjectItem {
   id: number;
@@ -50,12 +57,15 @@ interface CategoryItem {
 import { initialProjects, initialCategories } from "@/lib/mock-data";
 
 const MOCK_PROJECTS_DATA: ProjectItem[] = initialProjects;
-
 const MOCK_CATEGORIES_FALLBACK: CategoryItem[] = initialCategories;
 
 export default function AdminProjectsPage() {
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [projects, setProjects] = useState<ProjectItem[]>(() =>
+    getLocalCache<ProjectItem[]>(CACHE_KEYS.PROJECTS, initialProjects)
+  );
+  const [categories, setCategories] = useState<CategoryItem[]>(() =>
+    getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, initialCategories)
+  );
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,8 +96,12 @@ export default function AdminProjectsPage() {
 
   const handleLoadMockProjects = () => {
     setProjects(MOCK_PROJECTS_DATA);
+    setLocalCache(CACHE_KEYS.PROJECTS, MOCK_PROJECTS_DATA);
+    syncSectionToServer("projects", MOCK_PROJECTS_DATA);
     if (categories.length === 0) {
       setCategories(MOCK_CATEGORIES_FALLBACK);
+      setLocalCache(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_FALLBACK);
+      syncSectionToServer("categories", MOCK_CATEGORIES_FALLBACK);
     }
     setFeedback({
       type: "success",
@@ -100,31 +114,32 @@ export default function AdminProjectsPage() {
     setLoading(true);
     try {
       const [projRes, catRes] = await Promise.all([
-        fetch("/api/admin/projects"),
-        fetch("/api/admin/categories"),
+        adminFetch("/api/admin/projects"),
+        adminFetch("/api/admin/categories"),
       ]);
 
-      const projData = await projRes.json();
-      const catData = await catRes.json();
-
-      if (projRes.ok && projData.success && Array.isArray(projData.data) && projData.data.length > 0) {
-        setProjects(projData.data);
+      if (projRes.ok && projRes.data?.success && Array.isArray(projRes.data.data)) {
+        setProjects(projRes.data.data);
+        setLocalCache(CACHE_KEYS.PROJECTS, projRes.data.data);
       } else {
-        setProjects(MOCK_PROJECTS_DATA);
+        const cached = getLocalCache<ProjectItem[]>(CACHE_KEYS.PROJECTS, []);
+        if (cached.length > 0) {
+          setProjects(cached);
+          syncSectionToServer("projects", cached);
+        }
       }
 
-      if (catRes.ok && catData.success && Array.isArray(catData.data) && catData.data.length > 0) {
-        setCategories(catData.data);
+      if (catRes.ok && catRes.data?.success && Array.isArray(catRes.data.data) && catRes.data.data.length > 0) {
+        setCategories(catRes.data.data);
+        setLocalCache(CACHE_KEYS.CATEGORIES, catRes.data.data);
       } else {
-        setCategories(MOCK_CATEGORIES_FALLBACK);
+        const cachedCats = getLocalCache<CategoryItem[]>(CACHE_KEYS.CATEGORIES, MOCK_CATEGORIES_FALLBACK);
+        setCategories(cachedCats);
       }
     } catch {
-      setProjects(MOCK_PROJECTS_DATA);
+      const cached = getLocalCache<ProjectItem[]>(CACHE_KEYS.PROJECTS, MOCK_PROJECTS_DATA);
+      setProjects(cached);
       setCategories(MOCK_CATEGORIES_FALLBACK);
-      setFeedback({
-        type: "error",
-        message: "Gagal memuat data dari server, memuat media tiruan lokal.",
-      });
     } finally {
       setLoading(false);
     }
@@ -249,50 +264,61 @@ export default function AdminProjectsPage() {
 
     try {
       if (editingProject) {
-        const res = await fetch(`/api/admin/projects/${editingProject.id}`, {
+        const res = await adminFetch(`/api/admin/projects/${editingProject.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const data = await res.json();
-        if (res.ok && data.success) {
+        if (res.ok && res.data?.success) {
+          const updatedItem = res.data.data || { ...editingProject, ...payload };
+          const newProjects = projects.map((p) =>
+            p.id === editingProject.id ? updatedItem : p
+          );
+          setProjects(newProjects);
+          setLocalCache(CACHE_KEYS.PROJECTS, newProjects);
+          syncSectionToServer("projects", newProjects);
+
           setFeedback({
             type: "success",
             message: `Karya "${payload.title}" berhasil diperbarui.`,
           });
           setModalOpen(false);
-          fetchData();
         } else {
           setFeedback({
             type: "error",
-            message: data.error || "Gagal memperbarui karya.",
+            message: res.error || res.data?.error || "Gagal memperbarui karya.",
           });
         }
       } else {
-        const res = await fetch("/api/admin/projects", {
+        const res = await adminFetch("/api/admin/projects", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        const data = await res.json();
-        if (res.ok && data.success) {
+        if (res.ok && res.data?.success) {
+          const createdItem: ProjectItem = res.data.data || {
+            ...payload,
+            id: Date.now(),
+          };
+          const newProjects = [createdItem, ...projects];
+          setProjects(newProjects);
+          setLocalCache(CACHE_KEYS.PROJECTS, newProjects);
+          syncSectionToServer("projects", newProjects);
+
           setFeedback({
             type: "success",
             message: `Karya "${payload.title}" berhasil ditambahkan.`,
           });
           setModalOpen(false);
-          fetchData();
         } else {
           setFeedback({
             type: "error",
-            message: data.error || "Gagal menambahkan karya.",
+            message: res.error || res.data?.error || "Gagal menambahkan karya.",
           });
         }
       }
     } catch {
       setFeedback({
         type: "error",
-        message: "Terjadi kesalahan saat menyimpan karya.",
+        message: "Terjadi kesalahan jaringan saat menyimpan karya.",
       });
     } finally {
       setSaving(false);
@@ -303,21 +329,24 @@ export default function AdminProjectsPage() {
     if (!confirm(`Hapus karya "${title}" dari portofolio?`)) return;
 
     setDeletingId(id);
+    const newProjects = projects.filter((p) => p.id !== id);
+    setProjects(newProjects);
+    setLocalCache(CACHE_KEYS.PROJECTS, newProjects);
+    syncSectionToServer("projects", newProjects);
+
     try {
-      const res = await fetch(`/api/admin/projects/${id}`, {
+      const res = await adminFetch(`/api/admin/projects/${id}`, {
         method: "DELETE",
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok) {
         setFeedback({
           type: "success",
           message: `Karya "${title}" berhasil dihapus.`,
         });
-        setProjects((prev) => prev.filter((p) => p.id !== id));
       } else {
         setFeedback({
           type: "error",
-          message: data.error || "Gagal menghapus karya.",
+          message: res.error || "Gagal menghapus karya dari server.",
         });
       }
     } catch {
@@ -332,21 +361,20 @@ export default function AdminProjectsPage() {
 
   const toggleFeatured = async (proj: ProjectItem) => {
     const newFeatured = !proj.featured;
+    const newProjects = projects.map((p) =>
+      p.id === proj.id ? { ...p, featured: newFeatured } : p
+    );
+    setProjects(newProjects);
+    setLocalCache(CACHE_KEYS.PROJECTS, newProjects);
+    syncSectionToServer("projects", newProjects);
+
     try {
-      const res = await fetch(`/api/admin/projects/${proj.id}`, {
+      await adminFetch(`/api/admin/projects/${proj.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ featured: newFeatured }),
       });
-      if (res.ok) {
-        setProjects((prev) =>
-          prev.map((p) =>
-            p.id === proj.id ? { ...p, featured: newFeatured } : p
-          )
-        );
-      }
     } catch {
-      // ignore
+      // already saved locally
     }
   };
 

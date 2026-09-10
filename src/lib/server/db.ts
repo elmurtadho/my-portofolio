@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
+import os from 'os';
 import {
   DatabaseSchema,
   ProfileModel,
@@ -16,6 +17,8 @@ import { runMigrations, CURRENT_SCHEMA_VERSION } from './migrations';
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const DB_FILE = path.join(DATA_DIR, 'portfolio.json');
+// /tmp is guaranteed writable in AWS Lambda / Vercel Serverless Function instances
+const TMP_DB_FILE = path.join(os.tmpdir(), 'mintfolio-portfolio-v2.json');
 
 let cachedDb: DatabaseSchema | null = null;
 
@@ -32,44 +35,89 @@ function ensureDataDir() {
 
 /**
  * Reads and initializes database with automated migration.
+ * Checks memory cache -> /tmp file -> static .data/portfolio.json file.
  */
 export async function getDatabase(): Promise<DatabaseSchema> {
   if (cachedDb) {
     return cachedDb;
   }
+
+  // 1. Try reading from TMP_DB_FILE (persisted across warm lambda executions)
+  try {
+    if (fsSync.existsSync(TMP_DB_FILE)) {
+      const rawTmp = await fs.readFile(TMP_DB_FILE, 'utf-8');
+      const parsedTmp = JSON.parse(rawTmp);
+      if (parsedTmp && parsedTmp.version && Array.isArray(parsedTmp.skills)) {
+        const migratedTmp = runMigrations(parsedTmp);
+        cachedDb = migratedTmp;
+        return migratedTmp;
+      }
+    }
+  } catch {
+    // proceed to DB_FILE
+  }
+
   ensureDataDir();
 
+  // 2. Read from static bundle DB_FILE
   try {
     const raw = await fs.readFile(DB_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
     const migrated = runMigrations(parsed);
-    if (migrated.version !== parsed.version) {
-      await saveDatabase(migrated).catch(() => {});
-    }
     cachedDb = migrated;
+
+    // Pre-populate TMP_DB_FILE for subsequent lambda reads
+    try {
+      await fs.writeFile(TMP_DB_FILE, JSON.stringify(migrated, null, 2), 'utf-8');
+    } catch {
+      // ignore
+    }
+
     return migrated;
   } catch {
     // File missing or invalid: run migrations from scratch
     const initialData = runMigrations(null);
-    await saveDatabase(initialData).catch(() => {});
     cachedDb = initialData;
+
+    try {
+      await fs.writeFile(TMP_DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
+    } catch {
+      // ignore
+    }
+
     return initialData;
   }
 }
 
 /**
- * Atomic write to avoid file corruption with serverless read-only fallback.
+ * Atomic write to avoid file corruption.
+ * Writes to both /tmp (guaranteed writable on Vercel) and DB_FILE (local dev).
  */
 export async function saveDatabase(data: DatabaseSchema): Promise<void> {
   cachedDb = data;
+
+  // Always write to /tmp first (succeeds on Vercel Serverless)
+  try {
+    await fs.writeFile(TMP_DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[db] Could not write to tmp directory:', err);
+  }
+
+  // Try writing to local project DB_FILE
   ensureDataDir();
   const tempFile = `${DB_FILE}.${Date.now()}.tmp`;
   try {
     await fs.writeFile(tempFile, JSON.stringify(data, null, 2), 'utf-8');
     await fs.rename(tempFile, DB_FILE);
   } catch (err) {
-    console.warn('[db] Running in read-only environment, persistent file write skipped:', err);
+    // Expected on Vercel read-only filesystem
   }
+}
+
+export async function setFullDatabase(data: DatabaseSchema): Promise<DatabaseSchema> {
+  const migrated = runMigrations(data);
+  await saveDatabase(migrated);
+  return migrated;
 }
 
 /* ============================================================

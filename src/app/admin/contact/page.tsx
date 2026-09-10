@@ -20,7 +20,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
-
+import {
+  adminFetch,
+  getLocalCache,
+  setLocalCache,
+  syncSectionToServer,
+  CACHE_KEYS,
+} from "@/lib/client/admin-api";
 
 interface SocialLink {
   platform: string;
@@ -58,18 +64,17 @@ export default function AdminContactPage() {
   const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
   const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
-  const [formData, setFormData] = useState({
-    email: "",
-    phone: "",
-    location: "",
-    socials: [] as SocialLink[],
-  });
+  const [formData, setFormData] = useState(() =>
+    getLocalCache(CACHE_KEYS.CONTACT, MOCK_CONTACT_DATA)
+  );
 
   const [newPlatform, setNewPlatform] = useState("GitHub");
   const [newUrl, setNewUrl] = useState("");
 
   const handleLoadMockContact = () => {
     setFormData(MOCK_CONTACT_DATA);
+    setLocalCache(CACHE_KEYS.CONTACT, MOCK_CONTACT_DATA);
+    syncSectionToServer("contact", MOCK_CONTACT_DATA);
     setFeedback({
       type: "success",
       message: "Data kontak & 6 tautan media sosial tiruan berhasil dimuat!",
@@ -80,27 +85,27 @@ export default function AdminContactPage() {
   const fetchContact = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/contact");
-      const data = await res.json();
-      if (res.ok && data.success && data.data) {
-        setFormData({
-          email: data.data.email || MOCK_CONTACT_DATA.email,
-          phone: data.data.phone || MOCK_CONTACT_DATA.phone,
-          location: data.data.location || MOCK_CONTACT_DATA.location,
+      const res = await adminFetch("/api/admin/contact");
+      if (res.ok && res.data?.success && res.data?.data) {
+        const d = res.data.data;
+        const merged = {
+          email: d.email || MOCK_CONTACT_DATA.email,
+          phone: d.phone || MOCK_CONTACT_DATA.phone,
+          location: d.location || MOCK_CONTACT_DATA.location,
           socials:
-            Array.isArray(data.data.socials) && data.data.socials.length > 0
-              ? data.data.socials
+            Array.isArray(d.socials) && d.socials.length > 0
+              ? d.socials
               : MOCK_CONTACT_DATA.socials,
-        });
+        };
+        setFormData(merged);
+        setLocalCache(CACHE_KEYS.CONTACT, merged);
       } else {
-        setFormData(MOCK_CONTACT_DATA);
+        const cached = getLocalCache(CACHE_KEYS.CONTACT, MOCK_CONTACT_DATA);
+        setFormData(cached);
       }
     } catch {
-      setFormData(MOCK_CONTACT_DATA);
-      setFeedback({
-        type: "error",
-        message: "Gagal memuat data kontak dari server, memuat data tiruan lokal.",
-      });
+      const cached = getLocalCache(CACHE_KEYS.CONTACT, MOCK_CONTACT_DATA);
+      setFormData(cached);
     } finally {
       setLoading(false);
     }
@@ -171,15 +176,17 @@ export default function AdminContactPage() {
     setInvalidFields([]);
     setSaving(true);
 
+    // Save to local cache immediately
+    setLocalCache(CACHE_KEYS.CONTACT, formData);
+    syncSectionToServer("contact", formData);
+
     try {
-      const res = await fetch("/api/admin/contact", {
+      const res = await adminFetch("/api/admin/contact", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-      const data = await res.json();
 
-      if (res.ok && data.success) {
+      if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
           message: "Data kontak & media sosial berhasil diperbarui!",
@@ -187,14 +194,14 @@ export default function AdminContactPage() {
         setTimeout(() => setFeedback(null), 4000);
       } else {
         setFeedback({
-          type: "error",
-          message: data.error || "Gagal memperbarui data kontak.",
+          type: "warning",
+          message: "Data tersimpan di penyimpanan lokal, sedang mencoba sinkronisasi server.",
         });
       }
     } catch {
       setFeedback({
-        type: "error",
-        message: "Terjadi kesalahan saat menghubungi server.",
+        type: "warning",
+        message: "Data kontak berhasil disimpan di browser Anda.",
       });
     } finally {
       setSaving(false);

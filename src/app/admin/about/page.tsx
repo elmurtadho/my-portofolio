@@ -19,16 +19,15 @@ import {
 import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
 import { uploadMediaFile } from "@/lib/client/upload";
 import ImageCropModal from "@/components/admin/ImageCropModal";
+import {
+  adminFetch,
+  getLocalCache,
+  setLocalCache,
+  syncSectionToServer,
+  CACHE_KEYS,
+} from "@/lib/client/admin-api";
 
 export default function AdminAboutPage() {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [imageToCrop, setImageToCrop] = useState("");
-  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
-  const [invalidFields, setInvalidFields] = useState<string[]>([]);
-
   const MOCK_ABOUT_DATA = {
     bio: "Saya adalah seorang desainer dan pengembang kreatif dengan spesialisasi dalam merancang antarmuka digital yang intuitif, visual branding yang kuat, serta pengalaman web 3D yang imersif. Memadukan estetika modern Dark Mint Green dengan performa kode kelas dunia untuk membantu brand dan klien mewujudkan visi digital mereka.",
     experienceYears: 5,
@@ -42,18 +41,24 @@ export default function AdminAboutPage() {
     ],
   };
 
-  const [formData, setFormData] = useState({
-    bio: "",
-    experienceYears: 5,
-    completedProjects: 40,
-    imageUrl: "",
-    highlightPoints: [] as string[],
-  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState("");
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
+
+  const [formData, setFormData] = useState(() =>
+    getLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA)
+  );
 
   const [newHighlightInput, setNewHighlightInput] = useState("");
 
   const handleLoadMockData = () => {
     setFormData(MOCK_ABOUT_DATA);
+    setLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA);
+    syncSectionToServer("about", MOCK_ABOUT_DATA);
     setInvalidFields([]);
     setFeedback({
       type: "success",
@@ -66,27 +71,28 @@ export default function AdminAboutPage() {
     setLoading(true);
     setFeedback(null);
     try {
-      const res = await fetch("/api/admin/about");
-      const data = await res.json();
-      if (res.ok && data.success && data.data) {
-        setFormData({
-          bio: data.data.bio || MOCK_ABOUT_DATA.bio,
-          experienceYears:
-            Number(data.data.experienceYears) || MOCK_ABOUT_DATA.experienceYears,
-          completedProjects:
-            Number(data.data.completedProjects) || MOCK_ABOUT_DATA.completedProjects,
-          imageUrl: data.data.imageUrl ?? "",
+      const res = await adminFetch("/api/admin/about");
+      if (res.ok && res.data?.success && res.data?.data) {
+        const d = res.data.data;
+        const merged = {
+          bio: d.bio || MOCK_ABOUT_DATA.bio,
+          experienceYears: Number(d.experienceYears) || MOCK_ABOUT_DATA.experienceYears,
+          completedProjects: Number(d.completedProjects) || MOCK_ABOUT_DATA.completedProjects,
+          imageUrl: d.imageUrl ?? "",
           highlightPoints:
-            Array.isArray(data.data.highlightPoints) &&
-            data.data.highlightPoints.length > 0
-              ? data.data.highlightPoints
+            Array.isArray(d.highlightPoints) && d.highlightPoints.length > 0
+              ? d.highlightPoints
               : MOCK_ABOUT_DATA.highlightPoints,
-        });
+        };
+        setFormData(merged);
+        setLocalCache(CACHE_KEYS.ABOUT, merged);
       } else {
-        setFormData(MOCK_ABOUT_DATA);
+        const cached = getLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA);
+        setFormData(cached);
       }
     } catch {
-      setFormData(MOCK_ABOUT_DATA);
+      const cached = getLocalCache(CACHE_KEYS.ABOUT, MOCK_ABOUT_DATA);
+      setFormData(cached);
     } finally {
       setLoading(false);
     }
@@ -176,19 +182,23 @@ export default function AdminAboutPage() {
     setInvalidFields([]);
     setSaving(true);
 
+    const payload = {
+      ...formData,
+      experienceYears: Number(formData.experienceYears),
+      completedProjects: Number(formData.completedProjects),
+    };
+
+    // Save to local cache immediately
+    setLocalCache(CACHE_KEYS.ABOUT, payload);
+    syncSectionToServer("about", payload);
+
     try {
-      const res = await fetch("/api/admin/about", {
+      const res = await adminFetch("/api/admin/about", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          experienceYears: Number(formData.experienceYears),
-          completedProjects: Number(formData.completedProjects),
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
           message: "Informasi Tentang Saya berhasil disimpan dan diperbarui di portofolio!",
@@ -196,14 +206,14 @@ export default function AdminAboutPage() {
         setTimeout(() => setFeedback(null), 4500);
       } else {
         setFeedback({
-          type: "error",
-          message: data.error || "Gagal memperbarui data ke server.",
+          type: "warning",
+          message: "Data tersimpan di penyimpanan lokal, sedang mencoba sinkronisasi server.",
         });
       }
     } catch {
       setFeedback({
-        type: "error",
-        message: "Terjadi kesalahan jaringan saat menghubungi server.",
+        type: "warning",
+        message: "Data berhasil disimpan di browser Anda.",
       });
     } finally {
       setSaving(false);

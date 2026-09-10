@@ -1,3 +1,5 @@
+import { getAdminToken, compressImageFile } from "./admin-api";
+
 export interface UploadResult {
   success: boolean;
   url?: string;
@@ -14,7 +16,7 @@ export interface UploadOptions {
 
 /**
  * Uploads a file to /api/admin/upload with automated client-side data URL fallback
- * for robust execution even in serverless read-only environments.
+ * and image compression for robust execution even in serverless environments.
  */
 export async function uploadMediaFile(
   file: File,
@@ -39,65 +41,85 @@ export async function uploadMediaFile(
     }
   }
 
-  // Pre-generate base64 Data URL for guaranteed immediate fallback if needed
-  const readDataUrl = (): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error("Gagal membaca berkas lokal."));
-      reader.readAsDataURL(file);
-    });
-  };
+  // Optimize & compress image client-side to prevent Vercel 4.5MB payload limit
+  let processedFile = file;
+  let compressedDataUrl = "";
 
-  let localDataUrl = "";
-  try {
-    if (file.type.startsWith("image/") || file.size < 6 * 1024 * 1024) {
-      localDataUrl = await readDataUrl();
+  if (file.type.startsWith("image/") && !file.type.includes("svg") && !file.type.includes("gif")) {
+    try {
+      const compressed = await compressImageFile(file, 1600, 0.82);
+      processedFile = compressed.file;
+      compressedDataUrl = compressed.dataUrl;
+    } catch {
+      // fallback to original file
     }
-  } catch {
-    // continue to server upload
+  } else if (file.size < 6 * 1024 * 1024) {
+    try {
+      compressedDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  const token = getAdminToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", processedFile);
 
   try {
     const res = await fetch("/api/admin/upload", {
       method: "POST",
+      headers,
+      credentials: "include",
       body: fd,
     });
 
-    const data = await res.json();
-    if (res.ok && data.success && data.data?.url) {
+    let data: any = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+
+    if (res.ok && data?.success && data?.data?.url) {
       return {
         success: true,
         url: data.data.url,
-        filename: data.data.filename || file.name,
-        mediaType: data.data.mediaType || (file.type.startsWith("video/") ? "video" : "image"),
+        filename: data.data.filename || processedFile.name,
+        mediaType: data.data.mediaType || (processedFile.type.startsWith("video/") ? "video" : "image"),
       };
     }
 
-    // If server returned error or read-only filesystem, use the local data URL
-    if (localDataUrl) {
+    // If server returned read-only or upload failed, use compressed data URL
+    if (compressedDataUrl) {
       return {
         success: true,
-        url: localDataUrl,
-        filename: file.name,
-        mediaType: file.type.startsWith("video/") ? "video" : "image",
+        url: compressedDataUrl,
+        filename: processedFile.name,
+        mediaType: processedFile.type.startsWith("video/") ? "video" : "image",
       };
     }
 
     return {
       success: false,
-      error: data.error || "Gagal mengunggah berkas ke server.",
+      error: data?.error || "Gagal mengunggah berkas ke server.",
     };
   } catch (err: any) {
-    if (localDataUrl) {
+    if (compressedDataUrl) {
       return {
         success: true,
-        url: localDataUrl,
-        filename: file.name,
-        mediaType: file.type.startsWith("video/") ? "video" : "image",
+        url: compressedDataUrl,
+        filename: processedFile.name,
+        mediaType: processedFile.type.startsWith("video/") ? "video" : "image",
       };
     }
     return {

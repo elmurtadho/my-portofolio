@@ -74,9 +74,9 @@ export function verifySessionToken(token: string | null | undefined): boolean {
 
   if (isNaN(timestamp)) return false;
 
-  // 24 hours expiry
+  // 7 days expiry for seamless admin management without abrupt session drops
   const now = Date.now();
-  if (now - timestamp > 24 * 60 * 60 * 1000) {
+  if (now - timestamp > 7 * 24 * 60 * 60 * 1000) {
     return false;
   }
 
@@ -94,19 +94,29 @@ export function verifySessionToken(token: string | null | undefined): boolean {
 
 /**
  * Verifies if the incoming request has valid admin credentials
- * (checks cookie or Authorization: Bearer <token>).
+ * (checks Bearer token header, standard cookie, or Cookie header).
  */
 export async function isAuthenticatedAdmin(request?: Request): Promise<boolean> {
   // 1. Check Bearer token in request header
   if (request) {
-    const authHeader = request.headers.get('Authorization');
+    const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7).trim();
       if (verifySessionToken(token)) return true;
     }
+
+    // Check raw Cookie header in request
+    const cookieHeader = request.headers.get('cookie') || request.headers.get('Cookie');
+    if (cookieHeader) {
+      const match = cookieHeader.match(new RegExp(`(?:^|; )${ADMIN_COOKIE_NAME}=([^;]*)`));
+      if (match && match[1]) {
+        const decodedToken = decodeURIComponent(match[1]).trim();
+        if (verifySessionToken(decodedToken)) return true;
+      }
+    }
   }
 
-  // 2. Check HTTP cookie
+  // 2. Check Next.js HTTP cookie store
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
