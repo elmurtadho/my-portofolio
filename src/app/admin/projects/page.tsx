@@ -47,60 +47,11 @@ interface CategoryItem {
   name: string;
   slug: string;
 }
+import { initialProjects, initialCategories } from "@/lib/mock-data";
 
-const MOCK_PROJECTS_DATA: ProjectItem[] = [
-  {
-    id: 1,
-    title: "NeoMint Brand Identity & Visual Guidelines",
-    description: "Sistem identitas visual komprehensif, panduan tipografi dark mint, logo mark geometris, dan stationery kit untuk agensi kreatif.",
-    categorySlug: "graphic-design",
-    mediaType: "image",
-    mediaUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1200",
-    thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=600",
-    featured: true,
-    tags: ["Branding", "Vector", "Identity", "Design System"],
-  },
-  {
-    id: 2,
-    title: "Aura Fintech Mobile App & Design System",
-    description: "Desain aplikasi finansial generasi baru dengan mikro-interaksi responsif, grafik analitik real-time, dan Dark Mint Mode elegan.",
-    categorySlug: "ui-ux",
-    mediaType: "image",
-    mediaUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=1200",
-    thumbnailUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=600",
-    featured: true,
-    tags: ["UI/UX", "Mobile App", "Figma", "Fintech"],
-  },
-  {
-    id: 3,
-    title: "Cinematic Product Reel & 3D Motion Graphics",
-    description: "Showreel video komersial dengan transisi kamera dinamis, typography kinetic, sound design imersif, dan render 60fps.",
-    categorySlug: "video-editor",
-    mediaType: "video",
-    mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    thumbnailUrl: "https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&q=80&w=600",
-    featured: true,
-    tags: ["Video Editing", "After Effects", "Motion Graphics", "Premiere"],
-  },
-  {
-    id: 4,
-    title: "Cyberpunk Hologram Core & Three.js WebGL",
-    description: "Model 3D interaktif real-time menggunakan Three.js WebGL shader dengan efek rotasi orbital dan responsivitas pencahayaan dinamis.",
-    categorySlug: "3d-modeling",
-    mediaType: "model3d",
-    mediaUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb",
-    thumbnailUrl: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&q=80&w=600",
-    featured: true,
-    tags: ["Three.js", "WebGL", "Blender", "Interactive 3D"],
-  },
-];
+const MOCK_PROJECTS_DATA: ProjectItem[] = initialProjects;
 
-const MOCK_CATEGORIES_FALLBACK: CategoryItem[] = [
-  { id: 1, name: "Graphic Design", slug: "graphic-design" },
-  { id: 2, name: "UI/UX Design", slug: "ui-ux" },
-  { id: 3, name: "Video Editor", slug: "video-editor" },
-  { id: 4, name: "3D Modeling", slug: "3d-modeling" },
-];
+const MOCK_CATEGORIES_FALLBACK: CategoryItem[] = initialCategories;
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
