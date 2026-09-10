@@ -26,8 +26,8 @@ import {
   Eye,
   Sparkles,
 } from "lucide-react";
-
-
+import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
+import { uploadMediaFile } from "@/lib/client/upload";
 
 interface ProjectItem {
   id: number;
@@ -70,10 +70,8 @@ export default function AdminProjectsPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [tagInput, setTagInput] = useState("");
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -138,6 +136,8 @@ export default function AdminProjectsPage() {
 
   const openAddModal = () => {
     setEditingProject(null);
+    setInvalidFields([]);
+    setFeedback(null);
     const defaultCat = categories[0]?.slug || "ui-ux";
     setFormData({
       title: "",
@@ -155,6 +155,8 @@ export default function AdminProjectsPage() {
 
   const openEditModal = (proj: ProjectItem) => {
     setEditingProject(proj);
+    setInvalidFields([]);
+    setFeedback(null);
     setFormData({
       title: proj.title,
       description: proj.description || "",
@@ -176,42 +178,29 @@ export default function AdminProjectsPage() {
     setUploading(true);
     setFeedback(null);
 
-    const data = new FormData();
-    data.append("file", file);
-
-    try {
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: data,
+    const result = await uploadMediaFile(file, { maxSizeMB: 60 });
+    if (result.success && result.url) {
+      const isImg = result.mediaType === "image";
+      setFormData((prev) => ({
+        ...prev,
+        mediaUrl: result.url!,
+        mediaType: result.mediaType || prev.mediaType,
+        thumbnailUrl: isImg ? result.url! : prev.thumbnailUrl,
+      }));
+      setInvalidFields((prev) => prev.filter((f) => f !== "mediaUrl"));
+      setFeedback({
+        type: "success",
+        message: `Berkas "${file.name}" berhasil diunggah!`,
       });
-      const result = await res.json();
-
-      if (res.ok && result.success && result.data) {
-        setFormData((prev) => ({
-          ...prev,
-          mediaUrl: result.data.url,
-          mediaType: result.data.mediaType || prev.mediaType,
-          thumbnailUrl:
-            result.data.mediaType === "image" ? result.data.url : prev.thumbnailUrl,
-        }));
-        setFeedback({
-          type: "success",
-          message: `File "${file.name}" berhasil diunggah!`,
-        });
-      } else {
-        setFeedback({
-          type: "error",
-          message: result.error || "Gagal mengunggah file.",
-        });
-      }
-    } catch {
+      setTimeout(() => setFeedback(null), 3500);
+    } else {
       setFeedback({
         type: "error",
-        message: "Terjadi kesalahan saat mengunggah file.",
+        message: result.error || "Gagal mengunggah berkas.",
       });
-    } finally {
-      setUploading(false);
     }
+    setUploading(false);
+    e.target.value = "";
   };
 
   const handleAddTag = () => {
@@ -231,8 +220,27 @@ export default function AdminProjectsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setFeedback(null);
+
+    // Validation for "Belum Lengkap"
+    const missing: { key: string; label: string }[] = [];
+    if (!formData.title.trim()) missing.push({ key: "title", label: "Judul Karya / Proyek" });
+    if (!formData.categorySlug) missing.push({ key: "categorySlug", label: "Kategori Bidang Desain" });
+    if (!formData.mediaUrl.trim()) missing.push({ key: "mediaUrl", label: "URL Media Utama / Unggah Berkas" });
+    if (!formData.description.trim()) missing.push({ key: "description", label: "Deskripsi Karya" });
+
+    if (missing.length > 0) {
+      setInvalidFields(missing.map((m) => m.key));
+      setFeedback({
+        type: "warning",
+        message: "Data karya belum lengkap. Harap lengkapi bidang wajib:",
+        details: missing.map((m) => `${m.label} wajib diisi.`),
+      });
+      return;
+    }
+
+    setInvalidFields([]);
+    setSaving(true);
 
     const payload = {
       ...formData,
@@ -413,22 +421,7 @@ export default function AdminProjectsPage() {
       </div>
 
       {/* Feedback Alerts */}
-      {feedback && (
-        <div
-          className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-3 animate-in fade-in ${
-            feedback.type === "success"
-              ? "bg-emerald-950/70 border border-emerald-500/60 text-emerald-300"
-              : "bg-rose-950/70 border border-rose-600/60 text-rose-300"
-          }`}
-        >
-          {feedback.type === "success" ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          )}
-          <span>{feedback.message}</span>
-        </div>
-      )}
+      <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
 
       {/* Category Tabs and Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
@@ -820,6 +813,8 @@ export default function AdminProjectsPage() {
               </button>
             </div>
 
+            <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
+
             <form onSubmit={handleSave} className="space-y-5">
               {/* Title */}
               <div className="space-y-1.5">
@@ -829,12 +824,18 @@ export default function AdminProjectsPage() {
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  required
+                  onChange={(e) => {
+                    setFormData({ ...formData, title: e.target.value });
+                    if (invalidFields.includes("title")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "title"));
+                    }
+                  }}
                   placeholder="Misal: Lumina Financial App UI"
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("title")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
 
@@ -846,10 +847,17 @@ export default function AdminProjectsPage() {
                   </label>
                   <select
                     value={formData.categorySlug}
-                    onChange={(e) =>
-                      setFormData({ ...formData, categorySlug: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                    onChange={(e) => {
+                      setFormData({ ...formData, categorySlug: e.target.value });
+                      if (invalidFields.includes("categorySlug")) {
+                        setInvalidFields((prev) => prev.filter((f) => f !== "categorySlug"));
+                      }
+                    }}
+                    className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-sm focus:outline-none transition ${
+                      invalidFields.includes("categorySlug")
+                        ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                        : "border-[#173a27] focus:border-emerald-400"
+                    }`}
                   >
                     {categories.map((cat) => (
                       <option key={cat.slug} value={cat.slug}>
@@ -914,12 +922,18 @@ export default function AdminProjectsPage() {
                   <input
                     type="text"
                     value={formData.mediaUrl}
-                    onChange={(e) =>
-                      setFormData({ ...formData, mediaUrl: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormData({ ...formData, mediaUrl: e.target.value });
+                      if (invalidFields.includes("mediaUrl")) {
+                        setInvalidFields((prev) => prev.filter((f) => f !== "mediaUrl"));
+                      }
+                    }}
                     placeholder="https://... atau /uploads/..."
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-xs font-mono focus:outline-none focus:border-emerald-400 transition"
+                    className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-xs font-mono focus:outline-none transition ${
+                      invalidFields.includes("mediaUrl")
+                        ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                        : "border-[#173a27] focus:border-emerald-400"
+                    }`}
                   />
                 </div>
 
@@ -973,7 +987,6 @@ export default function AdminProjectsPage() {
                 )}
               </div>
 
-
               {/* Description */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-emerald-200">
@@ -982,11 +995,18 @@ export default function AdminProjectsPage() {
                 <textarea
                   rows={3}
                   value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (invalidFields.includes("description")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "description"));
+                    }
+                  }}
                   placeholder="Ceritakan proses pembuatan, konsep, dan tools yang dipakai..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition leading-relaxed"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-sm focus:outline-none transition leading-relaxed ${
+                    invalidFields.includes("description")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
 

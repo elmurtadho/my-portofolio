@@ -25,6 +25,8 @@ import {
   Code2,
   Cpu,
 } from "lucide-react";
+import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
+import { uploadMediaFile } from "@/lib/client/upload";
 
 interface SkillItem {
   id: number;
@@ -111,10 +113,8 @@ export default function AdminSkillsPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -159,6 +159,8 @@ export default function AdminSkillsPage() {
 
   const openAddModal = () => {
     setEditingSkill(null);
+    setInvalidFields([]);
+    setFeedback(null);
     setFormData({
       name: "",
       level: 85,
@@ -170,6 +172,8 @@ export default function AdminSkillsPage() {
 
   const openEditModal = (skill: SkillItem) => {
     setEditingSkill(skill);
+    setInvalidFields([]);
+    setFeedback(null);
     setFormData({
       name: skill.name,
       level: skill.level,
@@ -183,57 +187,60 @@ export default function AdminSkillsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/") && !file.name.match(/\.(png|jpe?g|svg|webp|gif|ico)$/i)) {
-      setFeedback({
-        type: "error",
-        message: "Berkas harus berupa gambar atau logo (PNG, SVG, JPG, WebP).",
-      });
-      return;
-    }
-
     setUploadingIcon(true);
     setFeedback(null);
 
-    const data = new FormData();
-    data.append("file", file);
+    const result = await uploadMediaFile(file, {
+      maxSizeMB: 10,
+      allowedExtensions: [".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico"],
+    });
 
-    try {
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: data,
+    if (result.success && result.url) {
+      setFormData((prev) => ({
+        ...prev,
+        icon: result.url!,
+      }));
+      setInvalidFields((prev) => prev.filter((f) => f !== "icon"));
+      setFeedback({
+        type: "success",
+        message: `Logo "${file.name}" berhasil diunggah!`,
       });
-      const result = await res.json();
-      if (res.ok && result.success && result.data?.url) {
-        setFormData((prev) => ({
-          ...prev,
-          icon: result.data.url,
-        }));
-        setFeedback({
-          type: "success",
-          message: `Logo "${file.name}" berhasil diunggah!`,
-        });
-        setTimeout(() => setFeedback(null), 3000);
-      } else {
-        setFeedback({
-          type: "error",
-          message: result.error || "Gagal mengunggah logo.",
-        });
-      }
-    } catch {
+      setTimeout(() => setFeedback(null), 3000);
+    } else {
       setFeedback({
         type: "error",
-        message: "Terjadi kesalahan saat mengunggah berkas logo.",
+        message: result.error || "Gagal mengunggah logo.",
       });
-    } finally {
-      setUploadingIcon(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+
+    setUploadingIcon(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setFeedback(null);
+
+    // Validation for "Belum Lengkap"
+    const missing: { key: string; label: string }[] = [];
+    if (!formData.name.trim()) missing.push({ key: "name", label: "Nama Keahlian / Tool" });
+    if (!formData.category.trim()) missing.push({ key: "category", label: "Kategori Keahlian" });
+    if (formData.level === undefined || formData.level === null || formData.level <= 0 || formData.level > 100) {
+      missing.push({ key: "level", label: "Tingkat Penguasaan (1-100%)" });
+    }
+
+    if (missing.length > 0) {
+      setInvalidFields(missing.map((m) => m.key));
+      setFeedback({
+        type: "warning",
+        message: "Data keahlian belum lengkap. Harap lengkapi bidang wajib:",
+        details: missing.map((m) => `${m.label} wajib diisi.`),
+      });
+      return;
+    }
+
+    setInvalidFields([]);
+    setSaving(true);
 
     try {
       if (editingSkill) {
@@ -402,22 +409,7 @@ export default function AdminSkillsPage() {
       </div>
 
       {/* Feedback Alerts */}
-      {feedback && (
-        <div
-          className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-3 animate-in fade-in ${
-            feedback.type === "success"
-              ? "bg-emerald-950/70 border border-emerald-500/60 text-emerald-300"
-              : "bg-rose-950/70 border border-rose-600/60 text-rose-300"
-          }`}
-        >
-          {feedback.type === "success" ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          )}
-          <span>{feedback.message}</span>
-        </div>
-      )}
+      <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
 
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
@@ -558,6 +550,8 @@ export default function AdminSkillsPage() {
               </button>
             </div>
 
+            <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
+
             <form onSubmit={handleSave} className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-emerald-200">
@@ -566,12 +560,18 @@ export default function AdminSkillsPage() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  required
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (invalidFields.includes("name")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "name"));
+                    }
+                  }}
                   placeholder="Misal: Figma, Three.js, Blender..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("name")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
 
@@ -581,10 +581,17 @@ export default function AdminSkillsPage() {
                 </label>
                 <select
                   value={formData.category}
-                  onChange={(e) =>
-                    setFormData({ ...formData, category: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                  onChange={(e) => {
+                    setFormData({ ...formData, category: e.target.value });
+                    if (invalidFields.includes("category")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "category"));
+                    }
+                  }}
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("category")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 >
                   <option value="Design & UI/UX">Design & UI/UX</option>
                   <option value="3D & Creative">3D & Creative</option>

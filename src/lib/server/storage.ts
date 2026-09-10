@@ -60,19 +60,35 @@ export async function saveUploadedFile(file: File): Promise<StoredFile> {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  await fs.writeFile(targetPath, buffer);
-
   const mediaType = detectMediaType(originalName, file.type);
-  const url = `/uploads/${safeName}`;
 
-  return {
-    filename: safeName,
-    url,
-    mediaType,
-    size: file.size,
-    originalName,
-    createdAt: new Date().toISOString(),
-  };
+  try {
+    await fs.writeFile(targetPath, buffer);
+    const url = `/uploads/${safeName}`;
+
+    return {
+      filename: safeName,
+      url,
+      mediaType,
+      size: file.size,
+      originalName,
+      createdAt: new Date().toISOString(),
+    };
+  } catch {
+    // Read-only filesystem fallback (e.g. Vercel serverless environment)
+    const mimeType = file.type || (mediaType === 'image' ? 'image/png' : 'application/octet-stream');
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
+    return {
+      filename: safeName,
+      url: dataUrl,
+      mediaType,
+      size: file.size,
+      originalName,
+      createdAt: new Date().toISOString(),
+    };
+  }
 }
 
 export async function listUploadedFiles(): Promise<StoredFile[]> {

@@ -6,19 +6,20 @@ import {
   Sparkles,
   Save,
   RefreshCw,
-  CheckCircle2,
-  AlertCircle,
   Plus,
   Trash2,
   UploadCloud,
   Eye,
 } from "lucide-react";
+import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
+import { uploadMediaFile } from "@/lib/client/upload";
 
 export default function AdminProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     displayName: "",
@@ -38,7 +39,7 @@ export default function AdminProfilePage() {
     tagline:
       "Menggabungkan estetika visual modern, presisi desain interaktif, dan visualisasi 3D WebGL imersif dalam satu karya bernilai tinggi.",
     status: "Tersedia untuk Proyek Baru & Kolaborasi",
-    photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=800",
+    photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800",
     bio: "Seorang desainer & pengembang digital interaktif dengan dedikasi lebih dari 5 tahun dalam menciptakan produk web berkinerja tinggi, visual 3D realistis, dan sistem antarmuka responsif bernuansa dark mint green yang elegan.",
     roles: [
       "Creative Technologist",
@@ -51,13 +52,17 @@ export default function AdminProfilePage() {
 
   const handleLoadMockData = () => {
     setFormData(MOCK_PROFILE_DATA);
-    setSuccessMsg("Data tiruan (demo template) berhasil dimuat ke formulir!");
-    setTimeout(() => setSuccessMsg(null), 3000);
+    setInvalidFields([]);
+    setFeedback({
+      type: "success",
+      message: "Data profil tiruan default berhasil dimuat ke formulir!",
+    });
+    setTimeout(() => setFeedback(null), 3500);
   };
 
   const fetchProfile = async () => {
     setLoading(true);
-    setErrorMsg(null);
+    setFeedback(null);
     try {
       const res = await fetch("/api/admin/profile");
       const data = await res.json();
@@ -94,6 +99,7 @@ export default function AdminProfilePage() {
       roles: [...prev.roles, trimmed],
     }));
     setNewRoleInput("");
+    setInvalidFields((prev) => prev.filter((f) => f !== "roles"));
   };
 
   const handleRemoveRole = (index: number) => {
@@ -103,11 +109,59 @@ export default function AdminProfilePage() {
     }));
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    setFeedback(null);
+
+    const result = await uploadMediaFile(file, { maxSizeMB: 10 });
+    if (result.success && result.url) {
+      setFormData((prev) => ({
+        ...prev,
+        photoUrl: result.url!,
+      }));
+      setInvalidFields((prev) => prev.filter((f) => f !== "photoUrl"));
+      setFeedback({
+        type: "success",
+        message: `Foto profil "${file.name}" berhasil diunggah! Tekan "Simpan Perubahan" untuk menerapkan.`,
+      });
+      setTimeout(() => setFeedback(null), 4500);
+    } else {
+      setFeedback({
+        type: "error",
+        message: result.error || "Gagal mengunggah foto profil.",
+      });
+    }
+    setUploadingPhoto(false);
+    e.target.value = "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFeedback(null);
+
+    // Form completeness validation
+    const missing: { key: string; label: string }[] = [];
+    if (!formData.displayName.trim()) missing.push({ key: "displayName", label: "Nama Lengkap / Tampilan" });
+    if (!formData.greeting.trim()) missing.push({ key: "greeting", label: "Sapaan Pembuka (Hero Greeting)" });
+    if (!formData.tagline.trim()) missing.push({ key: "tagline", label: "Tagline Utama" });
+    if (!formData.photoUrl.trim()) missing.push({ key: "photoUrl", label: "Foto Profil & Avatar" });
+    if (!formData.roles || formData.roles.length === 0) missing.push({ key: "roles", label: "Daftar Peran / Profesi (minimal 1)" });
+
+    if (missing.length > 0) {
+      setInvalidFields(missing.map((m) => m.key));
+      setFeedback({
+        type: "warning",
+        message: "Formulir profil belum lengkap. Harap isi bidang wajib berikut:",
+        details: missing.map((m) => `${m.label} wajib diisi.`),
+      });
+      return;
+    }
+
+    setInvalidFields([]);
     setSaving(true);
-    setSuccessMsg(null);
-    setErrorMsg(null);
 
     try {
       const res = await fetch("/api/admin/profile", {
@@ -118,13 +172,22 @@ export default function AdminProfilePage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccessMsg("Profil berhasil disimpan dan diperbarui!");
-        setTimeout(() => setSuccessMsg(null), 4000);
+        setFeedback({
+          type: "success",
+          message: "Data profil berhasil disimpan dan diperbarui di portofolio!",
+        });
+        setTimeout(() => setFeedback(null), 4500);
       } else {
-        setErrorMsg(data.error || "Gagal menyimpan perubahan profil.");
+        setFeedback({
+          type: "error",
+          message: data.error || "Gagal menyimpan perubahan profil ke server.",
+        });
       }
     } catch {
-      setErrorMsg("Terjadi kesalahan saat menghubungi server.");
+      setFeedback({
+        type: "error",
+        message: "Terjadi kesalahan jaringan saat menghubungi server.",
+      });
     } finally {
       setSaving(false);
     }
@@ -166,20 +229,8 @@ export default function AdminProfilePage() {
         </div>
       </div>
 
-      {/* Feedback Alerts */}
-      {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-300 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-950/70 border border-rose-600/60 text-rose-300 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in">
-          <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+      {/* Unified Feedback Alerts (Berhasil, Gagal, Belum Lengkap) */}
+      <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form Container */}
@@ -191,50 +242,74 @@ export default function AdminProfilePage() {
             {/* Display Name & Greeting */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-emerald-200">
-                  Nama Lengkap / Tampilan
+                <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                  <span>Nama Lengkap / Tampilan</span>
+                  {invalidFields.includes("displayName") && (
+                    <span className="text-[10px] text-amber-400 font-normal">Wajib diisi</span>
+                  )}
                 </label>
                 <input
                   type="text"
                   value={formData.displayName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, displayName: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, displayName: e.target.value });
+                    if (e.target.value.trim()) setInvalidFields((prev) => prev.filter((f) => f !== "displayName"));
+                  }}
                   required
                   placeholder="Misal: Ahmad Elmurtadho"
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#06120b] text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("displayName")
+                      ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
+                      : "border border-[#173a27] focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30"
+                  }`}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-emerald-200">
-                  Sapaan Pembuka (Hero Greeting)
+                <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                  <span>Sapaan Pembuka (Hero Greeting)</span>
+                  {invalidFields.includes("greeting") && (
+                    <span className="text-[10px] text-amber-400 font-normal">Wajib diisi</span>
+                  )}
                 </label>
                 <input
                   type="text"
                   value={formData.greeting}
-                  onChange={(e) =>
-                    setFormData({ ...formData, greeting: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, greeting: e.target.value });
+                    if (e.target.value.trim()) setInvalidFields((prev) => prev.filter((f) => f !== "greeting"));
+                  }}
                   placeholder="Misal: Halo, Saya"
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#06120b] text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("greeting")
+                      ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
+                      : "border border-[#173a27] focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30"
+                  }`}
                 />
               </div>
             </div>
 
             {/* Tagline / Subtitle */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-emerald-200">
-                Tagline Utama
+              <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                <span>Tagline Utama</span>
+                {invalidFields.includes("tagline") && (
+                  <span className="text-[10px] text-amber-400 font-normal">Wajib diisi</span>
+                )}
               </label>
               <input
                 type="text"
                 value={formData.tagline}
-                onChange={(e) =>
-                  setFormData({ ...formData, tagline: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, tagline: e.target.value });
+                  if (e.target.value.trim()) setInvalidFields((prev) => prev.filter((f) => f !== "tagline"));
+                }}
                 placeholder="Misal: Menggabungkan estetika visual modern, presisi desain, dan interaktivitas 3D..."
-                className="w-full px-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition"
+                className={`w-full px-4 py-2.5 rounded-xl bg-[#06120b] text-white text-sm focus:outline-none transition ${
+                  invalidFields.includes("tagline")
+                    ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
+                    : "border border-[#173a27] focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30"
+                }`}
               />
             </div>
 
@@ -256,12 +331,21 @@ export default function AdminProfilePage() {
 
             {/* Photo URL & Direct Upload */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-emerald-200">
-                Foto Profil & Avatar
+              <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                <span>Foto Profil & Avatar</span>
+                {invalidFields.includes("photoUrl") && (
+                  <span className="text-[10px] text-amber-400 font-normal">Wajib diisi / diunggah</span>
+                )}
               </label>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-[#06120b] border border-[#173a27]">
+              <div
+                className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-[#06120b] transition ${
+                  invalidFields.includes("photoUrl")
+                    ? "border-2 border-amber-500/80"
+                    : "border border-[#173a27]"
+                }`}
+              >
                 {/* Avatar Preview */}
-                <div className="w-16 h-16 rounded-2xl bg-[#0a1e14] border border-emerald-500/30 overflow-hidden flex items-center justify-center shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-[#0a1e14] border border-emerald-500/30 overflow-hidden flex items-center justify-center shrink-0 relative">
                   {formData.photoUrl ? (
                     <img
                       src={formData.photoUrl}
@@ -274,6 +358,11 @@ export default function AdminProfilePage() {
                   ) : (
                     <User className="w-8 h-8 text-emerald-500/40" />
                   )}
+                  {uploadingPhoto && (
+                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center backdrop-blur-xs">
+                      <RefreshCw className="w-5 h-5 text-emerald-400 animate-spin" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 w-full space-y-2">
@@ -281,45 +370,42 @@ export default function AdminProfilePage() {
                     <input
                       type="text"
                       value={formData.photoUrl}
-                      onChange={(e) =>
-                        setFormData({ ...formData, photoUrl: e.target.value })
-                      }
-                      placeholder="https://... atau /uploads/..."
+                      onChange={(e) => {
+                        setFormData({ ...formData, photoUrl: e.target.value });
+                        if (e.target.value.trim()) setInvalidFields((prev) => prev.filter((f) => f !== "photoUrl"));
+                      }}
+                      placeholder="https://... atau data:image/..."
                       className="flex-1 px-4 py-2 rounded-xl bg-[#081810] border border-[#173a27] text-white text-xs font-mono focus:outline-none focus:border-emerald-400 transition"
                     />
-                    <label className="px-3.5 py-2 rounded-xl bg-[#0e271b] hover:bg-[#153827] text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition cursor-pointer flex items-center gap-1.5 shrink-0">
-                      <UploadCloud className="w-3.5 h-3.5" />
-                      <span>Unggah Foto</span>
+                    <label
+                      className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 shrink-0 ${
+                        uploadingPhoto
+                          ? "bg-emerald-950 text-emerald-400 border-emerald-500/40 cursor-wait opacity-80"
+                          : "bg-[#0e271b] hover:bg-[#153827] text-emerald-300 border-emerald-500/30 cursor-pointer"
+                      }`}
+                    >
+                      {uploadingPhoto ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                          <span>Mengunggah...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="w-3.5 h-3.5" />
+                          <span>Unggah Foto</span>
+                        </>
+                      )}
                       <input
                         type="file"
                         accept="image/*"
+                        disabled={uploadingPhoto}
                         className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const fd = new FormData();
-                          fd.append("file", file);
-                          try {
-                            const res = await fetch("/api/admin/upload", {
-                              method: "POST",
-                              body: fd,
-                            });
-                            const result = await res.json();
-                            if (res.ok && result.success) {
-                              setFormData((prev) => ({
-                                ...prev,
-                                photoUrl: result.data.url,
-                              }));
-                            }
-                          } catch {
-                            // ignore
-                          }
-                        }}
+                        onChange={handlePhotoUpload}
                       />
                     </label>
                   </div>
                   <p className="text-[10px] text-emerald-500/60">
-                    Format gambar yang didukung: JPG, PNG, WebP, SVG. Maks 10MB.
+                    Format gambar: JPG, PNG, WebP, SVG (Maks. 10MB). Unggah langsung atau tempelkan URL gambar.
                   </p>
                 </div>
               </div>
@@ -354,7 +440,13 @@ export default function AdminProfilePage() {
               </div>
 
               {/* Tag Badges */}
-              <div className="flex flex-wrap gap-2 min-h-[44px] p-3 rounded-xl bg-[#06120b] border border-[#173a27]">
+              <div
+                className={`flex flex-wrap gap-2 min-h-[44px] p-3 rounded-xl bg-[#06120b] transition ${
+                  invalidFields.includes("roles")
+                    ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
+                    : "border border-[#173a27]"
+                }`}
+              >
                 {formData.roles.length === 0 && (
                   <span className="text-xs text-emerald-600/70 italic py-1">
                     Belum ada peran. Tambahkan di bawah.

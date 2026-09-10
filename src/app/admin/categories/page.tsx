@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
 
 interface CategoryItem {
   id: number;
@@ -68,10 +69,8 @@ export default function AdminCategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -137,6 +136,8 @@ export default function AdminCategoriesPage() {
 
   const openAddModal = () => {
     setEditingCategory(null);
+    setInvalidFields([]);
+    setFeedback(null);
     setFormData({
       name: "",
       slug: "",
@@ -147,6 +148,8 @@ export default function AdminCategoriesPage() {
 
   const openEditModal = (cat: CategoryItem) => {
     setEditingCategory(cat);
+    setInvalidFields([]);
+    setFeedback(null);
     setFormData({
       name: cat.name,
       slug: cat.slug,
@@ -157,8 +160,26 @@ export default function AdminCategoriesPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setFeedback(null);
+
+    // Validation for "Belum Lengkap"
+    const missing: { key: string; label: string }[] = [];
+    if (!formData.name.trim()) missing.push({ key: "name", label: "Nama Kategori" });
+    if (!formData.slug.trim()) missing.push({ key: "slug", label: "Slug URL Kategori" });
+    if (!formData.description.trim()) missing.push({ key: "description", label: "Deskripsi Singkat" });
+
+    if (missing.length > 0) {
+      setInvalidFields(missing.map((m) => m.key));
+      setFeedback({
+        type: "warning",
+        message: "Data kategori belum lengkap. Harap lengkapi bidang wajib:",
+        details: missing.map((m) => `${m.label} wajib diisi.`),
+      });
+      return;
+    }
+
+    setInvalidFields([]);
+    setSaving(true);
 
     const payload = {
       name: formData.name.trim(),
@@ -306,22 +327,7 @@ export default function AdminCategoriesPage() {
       </div>
 
       {/* Feedback Alerts */}
-      {feedback && (
-        <div
-          className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-3 animate-in fade-in ${
-            feedback.type === "success"
-              ? "bg-emerald-950/70 border border-emerald-500/60 text-emerald-300"
-              : "bg-rose-950/70 border border-rose-600/60 text-rose-300"
-          }`}
-        >
-          {feedback.type === "success" ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          )}
-          <span>{feedback.message}</span>
-        </div>
-      )}
+      <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
 
       {/* Categories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -425,6 +431,8 @@ export default function AdminCategoriesPage() {
               </button>
             </div>
 
+            <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
+
             <form onSubmit={handleSave} className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-emerald-200">
@@ -440,10 +448,16 @@ export default function AdminCategoriesPage() {
                       name,
                       slug: editingCategory ? formData.slug : autoGenerateSlug(name),
                     });
+                    if (invalidFields.includes("name")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "name"));
+                    }
                   }}
-                  required
                   placeholder="Misal: Graphic Design, 3D Modeling..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("name")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
 
@@ -454,15 +468,21 @@ export default function AdminCategoriesPage() {
                 <input
                   type="text"
                   value={formData.slug}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData({
                       ...formData,
                       slug: autoGenerateSlug(e.target.value),
-                    })
-                  }
-                  required
+                    });
+                    if (invalidFields.includes("slug")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "slug"));
+                    }
+                  }}
                   placeholder="graphic-design, 3d-modeling..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-sm font-mono text-xs focus:outline-none focus:border-emerald-400 transition"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white font-mono text-xs focus:outline-none transition ${
+                    invalidFields.includes("slug")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
 
@@ -473,11 +493,18 @@ export default function AdminCategoriesPage() {
                 <textarea
                   rows={3}
                   value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (invalidFields.includes("description")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "description"));
+                    }
+                  }}
                   placeholder="Deskripsi singkat jenis karya dalam kategori ini..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#050e08] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition leading-relaxed"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#050e08] border text-white text-sm focus:outline-none transition leading-relaxed ${
+                    invalidFields.includes("description")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
 

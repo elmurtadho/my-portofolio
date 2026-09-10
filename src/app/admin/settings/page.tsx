@@ -14,38 +14,55 @@ import {
   Server,
   RefreshCw,
 } from "lucide-react";
+import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
 
 export default function AdminSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
 
-    if (newPassword.length < 6) {
+    const missing: { key: string; label: string }[] = [];
+    if (!currentPassword.trim()) missing.push({ key: "currentPassword", label: "Kata Sandi Lama" });
+    if (!newPassword.trim()) missing.push({ key: "newPassword", label: "Kata Sandi Baru" });
+    if (!confirmPassword.trim()) missing.push({ key: "confirmPassword", label: "Konfirmasi Kata Sandi Baru" });
+
+    if (missing.length > 0) {
+      setInvalidFields(missing.map((m) => m.key));
       setFeedback({
-        type: "error",
-        message: "Kata sandi baru minimal harus 6 karakter.",
+        type: "warning",
+        message: "Form kata sandi belum lengkap. Harap lengkapi bidang wajib:",
+        details: missing.map((m) => `${m.label} wajib diisi.`),
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setInvalidFields(["newPassword"]);
+      setFeedback({
+        type: "warning",
+        message: "Format kata sandi belum memenuhi syarat:",
+        details: ["Kata sandi baru minimal harus 6 karakter."],
       });
       return;
     }
 
     if (newPassword !== confirmPassword) {
+      setInvalidFields(["confirmPassword"]);
       setFeedback({
         type: "error",
-        message: "Konfirmasi kata sandi baru tidak cocok.",
+        message: "Konfirmasi kata sandi baru tidak cocok dengan kata sandi baru.",
       });
       return;
     }
 
+    setInvalidFields([]);
     setSaving(true);
     try {
       // Send auth verification / password change
@@ -124,22 +141,7 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* Feedback Alerts */}
-      {feedback && (
-        <div
-          className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-3 animate-in fade-in ${
-            feedback.type === "success"
-              ? "bg-emerald-950/70 border border-emerald-500/60 text-emerald-300"
-              : "bg-rose-950/70 border border-rose-600/60 text-rose-300"
-          }`}
-        >
-          {feedback.type === "success" ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          )}
-          <span>{feedback.message}</span>
-        </div>
-      )}
+      <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Change Password Form */}
@@ -161,10 +163,18 @@ export default function AdminSettingsPage() {
                 <input
                   type="password"
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    if (invalidFields.includes("currentPassword")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "currentPassword"));
+                    }
+                  }}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("currentPassword")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
             </div>
@@ -178,11 +188,18 @@ export default function AdminSettingsPage() {
                 <input
                   type="password"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    if (invalidFields.includes("newPassword")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "newPassword"));
+                    }
+                  }}
                   placeholder="Minimal 6 karakter"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("newPassword")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
             </div>
@@ -196,11 +213,18 @@ export default function AdminSettingsPage() {
                 <input
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (invalidFields.includes("confirmPassword")) {
+                      setInvalidFields((prev) => prev.filter((f) => f !== "confirmPassword"));
+                    }
+                  }}
                   placeholder="Ulangi kata sandi baru"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("confirmPassword")
+                      ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                      : "border-[#173a27] focus:border-emerald-400"
+                  }`}
                 />
               </div>
             </div>

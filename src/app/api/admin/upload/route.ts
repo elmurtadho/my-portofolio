@@ -43,6 +43,28 @@ export async function POST(request: Request) {
       );
     }
 
+    const contentType = request.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const body = await request.json();
+      if (body.dataUrl || body.base64) {
+        const url = body.dataUrl || body.base64;
+        const filename = body.filename || `upload-${Date.now()}.png`;
+        const mediaType = body.mediaType || 'image';
+        return NextResponse.json({
+          success: true,
+          message: 'Berkas media berhasil diunggah',
+          data: {
+            filename,
+            url,
+            mediaType,
+            size: url.length,
+            originalName: filename,
+            createdAt: new Date().toISOString(),
+          },
+        });
+      }
+    }
+
     const formData = await request.formData();
     const rawFiles = formData.getAll('file');
     const filesToUpload: File[] = (

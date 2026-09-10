@@ -17,6 +17,8 @@ import {
   AlertCircle,
   File,
 } from "lucide-react";
+import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
+import { uploadMediaFile } from "@/lib/client/upload";
 
 interface MediaItem {
   filename: string;
@@ -35,10 +37,7 @@ export default function AdminMediaPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
 
   const fetchMedia = async () => {
     setLoading(true);
@@ -70,37 +69,41 @@ export default function AdminMediaPage() {
     setFeedback(null);
 
     let successCount = 0;
+    const errors: string[] = [];
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const formData = new FormData();
-      formData.append("file", file);
-
-      try {
-        const res = await fetch("/api/admin/upload", {
-          method: "POST",
-          body: formData,
-        });
-        if (res.ok) {
-          successCount++;
-        }
-      } catch {
-        // continue
+      const result = await uploadMediaFile(file, { maxSizeMB: 60 });
+      if (result.success) {
+        successCount++;
+      } else {
+        errors.push(`${file.name}: ${result.error || "Gagal mengunggah"}`);
       }
     }
 
     setUploading(false);
-    if (successCount > 0) {
+    if (successCount === files.length) {
       setFeedback({
         type: "success",
-        message: `${successCount} file berhasil diunggah ke pustaka!`,
+        message: `${successCount} berkas berhasil diunggah ke pustaka media!`,
+      });
+      fetchMedia();
+    } else if (successCount > 0) {
+      setFeedback({
+        type: "warning",
+        message: `${successCount} dari ${files.length} berkas berhasil diunggah. Terdapat kendala:`,
+        details: errors,
       });
       fetchMedia();
     } else {
       setFeedback({
         type: "error",
-        message: "Gagal mengunggah file media.",
+        message: "Gagal mengunggah berkas ke pustaka media:",
+        details: errors,
       });
     }
+
+    e.target.value = "";
   };
 
   const handleDelete = async (filename: string) => {
@@ -187,22 +190,7 @@ export default function AdminMediaPage() {
       </div>
 
       {/* Feedback Alerts */}
-      {feedback && (
-        <div
-          className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-3 animate-in fade-in ${
-            feedback.type === "success"
-              ? "bg-emerald-950/70 border border-emerald-500/60 text-emerald-300"
-              : "bg-rose-950/70 border border-rose-600/60 text-rose-300"
-          }`}
-        >
-          {feedback.type === "success" ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          )}
-          <span>{feedback.message}</span>
-        </div>
-      )}
+      <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">

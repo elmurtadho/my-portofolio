@@ -19,6 +19,7 @@ import {
   ArrowDown,
   Sparkles,
 } from "lucide-react";
+import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
 
 
 interface SocialLink {
@@ -54,10 +55,8 @@ const MOCK_CONTACT_DATA = {
 export default function AdminContactPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -150,10 +149,27 @@ export default function AdminContactPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-
     e.preventDefault();
-    setSaving(true);
     setFeedback(null);
+
+    // Validation for "Belum Lengkap"
+    const missing: { key: string; label: string }[] = [];
+    if (!formData.email.trim()) missing.push({ key: "email", label: "Alamat Email Kontak" });
+    if (!formData.phone.trim()) missing.push({ key: "phone", label: "Nomor WhatsApp / Telepon" });
+    if (!formData.location.trim()) missing.push({ key: "location", label: "Lokasi / Domisili" });
+
+    if (missing.length > 0) {
+      setInvalidFields(missing.map((m) => m.key));
+      setFeedback({
+        type: "warning",
+        message: "Data kontak belum lengkap. Harap lengkapi bidang wajib:",
+        details: missing.map((m) => `${m.label} wajib diisi.`),
+      });
+      return;
+    }
+
+    setInvalidFields([]);
+    setSaving(true);
 
     try {
       const res = await fetch("/api/admin/contact", {
@@ -222,22 +238,7 @@ export default function AdminContactPage() {
       </div>
 
       {/* Feedback Alerts */}
-      {feedback && (
-        <div
-          className={`p-4 rounded-2xl text-xs sm:text-sm flex items-center gap-3 animate-in fade-in ${
-            feedback.type === "success"
-              ? "bg-emerald-950/70 border border-emerald-500/60 text-emerald-300"
-              : "bg-rose-950/70 border border-rose-600/60 text-rose-300"
-          }`}
-        >
-          {feedback.type === "success" ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          )}
-          <span>{feedback.message}</span>
-        </div>
-      )}
+      <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form Container */}
@@ -263,12 +264,18 @@ export default function AdminContactPage() {
                     <input
                       type="email"
                       value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      required
+                      onChange={(e) => {
+                        setFormData({ ...formData, email: e.target.value });
+                        if (invalidFields.includes("email")) {
+                          setInvalidFields((prev) => prev.filter((f) => f !== "email"));
+                        }
+                      }}
                       placeholder="hello@domain.com"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border text-white text-sm focus:outline-none transition ${
+                        invalidFields.includes("email")
+                          ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                          : "border-[#173a27] focus:border-emerald-400"
+                      }`}
                     />
                   </div>
                 </div>
@@ -282,11 +289,18 @@ export default function AdminContactPage() {
                     <input
                       type="text"
                       value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setFormData({ ...formData, phone: e.target.value });
+                        if (invalidFields.includes("phone")) {
+                          setInvalidFields((prev) => prev.filter((f) => f !== "phone"));
+                        }
+                      }}
                       placeholder="+62 812-3456-7890"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                      className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border text-white text-sm focus:outline-none transition ${
+                        invalidFields.includes("phone")
+                          ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                          : "border-[#173a27] focus:border-emerald-400"
+                      }`}
                     />
                   </div>
                 </div>
@@ -301,11 +315,18 @@ export default function AdminContactPage() {
                   <input
                     type="text"
                     value={formData.location}
-                    onChange={(e) =>
-                      setFormData({ ...formData, location: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormData({ ...formData, location: e.target.value });
+                      if (invalidFields.includes("location")) {
+                        setInvalidFields((prev) => prev.filter((f) => f !== "location"));
+                      }
+                    }}
                     placeholder="Jakarta, Indonesia (GMT+7)"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border text-white text-sm focus:outline-none transition ${
+                      invalidFields.includes("location")
+                        ? "border-amber-500/80 ring-1 ring-amber-500/50"
+                        : "border-[#173a27] focus:border-emerald-400"
+                    }`}
                   />
                 </div>
               </div>

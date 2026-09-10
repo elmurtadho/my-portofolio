@@ -5,8 +5,6 @@ import {
   FileText,
   Save,
   RefreshCw,
-  CheckCircle2,
-  AlertCircle,
   Plus,
   Trash2,
   Eye,
@@ -16,13 +14,15 @@ import {
   UploadCloud,
   Sparkles,
 } from "lucide-react";
-
+import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
+import { uploadMediaFile } from "@/lib/client/upload";
 
 export default function AdminAboutPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
 
   const MOCK_ABOUT_DATA = {
     bio: "Saya adalah seorang desainer dan pengembang kreatif dengan spesialisasi dalam merancang antarmuka digital yang intuitif, visual branding yang kuat, serta pengalaman web 3D yang imersif. Memadukan estetika modern Dark Mint Green dengan performa kode kelas dunia untuk membantu brand dan klien mewujudkan visi digital mereka.",
@@ -49,13 +49,17 @@ export default function AdminAboutPage() {
 
   const handleLoadMockData = () => {
     setFormData(MOCK_ABOUT_DATA);
-    setSuccessMsg("Data tiruan (demo template) berhasil dimuat ke formulir!");
-    setTimeout(() => setSuccessMsg(null), 3000);
+    setInvalidFields([]);
+    setFeedback({
+      type: "success",
+      message: "Data Tentang Saya tiruan default berhasil dimuat ke formulir!",
+    });
+    setTimeout(() => setFeedback(null), 3500);
   };
 
   const fetchAbout = async () => {
     setLoading(true);
-    setErrorMsg(null);
+    setFeedback(null);
     try {
       const res = await fetch("/api/admin/about");
       const data = await res.json();
@@ -96,6 +100,7 @@ export default function AdminAboutPage() {
       highlightPoints: [...prev.highlightPoints, trimmed],
     }));
     setNewHighlightInput("");
+    setInvalidFields((prev) => prev.filter((f) => f !== "highlightPoints"));
   };
 
   const handleRemoveHighlight = (index: number) => {
@@ -105,11 +110,65 @@ export default function AdminAboutPage() {
     }));
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setFeedback(null);
+
+    const result = await uploadMediaFile(file, { maxSizeMB: 10 });
+    if (result.success && result.url) {
+      setFormData((prev) => ({
+        ...prev,
+        imageUrl: result.url!,
+      }));
+      setInvalidFields((prev) => prev.filter((f) => f !== "imageUrl"));
+      setFeedback({
+        type: "success",
+        message: `Foto "${file.name}" berhasil diunggah! Tekan "Simpan Perubahan" untuk menerapkan.`,
+      });
+      setTimeout(() => setFeedback(null), 4500);
+    } else {
+      setFeedback({
+        type: "error",
+        message: result.error || "Gagal mengunggah gambar.",
+      });
+    }
+    setUploadingImage(false);
+    e.target.value = "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFeedback(null);
+
+    // Validation for "Belum Lengkap"
+    const missing: { key: string; label: string }[] = [];
+    if (!formData.bio.trim()) missing.push({ key: "bio", label: "Biografi Naratif Lengkap" });
+    if (!formData.imageUrl.trim()) missing.push({ key: "imageUrl", label: "Foto / Gambar Profil Tentang Saya" });
+    if (formData.experienceYears === undefined || formData.experienceYears < 0) {
+      missing.push({ key: "experienceYears", label: "Tahun Pengalaman (angka >= 0)" });
+    }
+    if (formData.completedProjects === undefined || formData.completedProjects < 0) {
+      missing.push({ key: "completedProjects", label: "Jumlah Karya Selesai (angka >= 0)" });
+    }
+    if (!formData.highlightPoints || formData.highlightPoints.length === 0) {
+      missing.push({ key: "highlightPoints", label: "Poin-poin Sorotan Keahlian (minimal 1)" });
+    }
+
+    if (missing.length > 0) {
+      setInvalidFields(missing.map((m) => m.key));
+      setFeedback({
+        type: "warning",
+        message: "Formulir Tentang Saya belum lengkap. Harap lengkapi bidang berikut:",
+        details: missing.map((m) => `${m.label} wajib diisi.`),
+      });
+      return;
+    }
+
+    setInvalidFields([]);
     setSaving(true);
-    setSuccessMsg(null);
-    setErrorMsg(null);
 
     try {
       const res = await fetch("/api/admin/about", {
@@ -124,13 +183,22 @@ export default function AdminAboutPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccessMsg("Informasi Tentang Saya berhasil diperbarui!");
-        setTimeout(() => setSuccessMsg(null), 4000);
+        setFeedback({
+          type: "success",
+          message: "Informasi Tentang Saya berhasil disimpan dan diperbarui di portofolio!",
+        });
+        setTimeout(() => setFeedback(null), 4500);
       } else {
-        setErrorMsg(data.error || "Gagal memperbarui data.");
+        setFeedback({
+          type: "error",
+          message: data.error || "Gagal memperbarui data ke server.",
+        });
       }
     } catch {
-      setErrorMsg("Terjadi kesalahan saat menghubungi server.");
+      setFeedback({
+        type: "error",
+        message: "Terjadi kesalahan jaringan saat menghubungi server.",
+      });
     } finally {
       setSaving(false);
     }
@@ -172,20 +240,8 @@ export default function AdminAboutPage() {
         </div>
       </div>
 
-      {/* Feedback Alerts */}
-      {successMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-300 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-950/70 border border-rose-600/60 text-rose-300 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in">
-          <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+      {/* Unified Feedback Alerts */}
+      <AdminFeedback feedback={feedback} onClose={() => setFeedback(null)} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form Container */}
@@ -196,69 +252,102 @@ export default function AdminAboutPage() {
           >
             {/* Bio Narrative */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-emerald-200">
-                Biografi Naratif Lengkap
+              <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                <span>Biografi Naratif Lengkap</span>
+                {invalidFields.includes("bio") && (
+                  <span className="text-[10px] text-amber-400 font-normal">Wajib diisi</span>
+                )}
               </label>
               <textarea
                 rows={6}
                 value={formData.bio}
-                onChange={(e) =>
-                  setFormData({ ...formData, bio: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, bio: e.target.value });
+                  if (e.target.value.trim()) setInvalidFields((prev) => prev.filter((f) => f !== "bio"));
+                }}
                 required
                 placeholder="Tuliskan cerita latar belakang, filosofi desain, dan pendekatan teknis Anda..."
-                className="w-full px-4 py-3 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition leading-relaxed placeholder-emerald-900"
+                className={`w-full px-4 py-3 rounded-xl bg-[#06120b] text-white text-sm focus:outline-none transition leading-relaxed placeholder-emerald-900 ${
+                  invalidFields.includes("bio")
+                    ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
+                    : "border border-[#173a27] focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30"
+                }`}
               />
             </div>
 
             {/* Metrics: Experience & Projects */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-emerald-200">
-                  Tahun Pengalaman (Tahun)
+                <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                  <span>Tahun Pengalaman (Tahun)</span>
+                  {invalidFields.includes("experienceYears") && (
+                    <span className="text-[10px] text-amber-400 font-normal">Harus angka &gt;= 0</span>
+                  )}
                 </label>
                 <input
                   type="number"
                   min={0}
                   value={formData.experienceYears}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData({
                       ...formData,
                       experienceYears: Number(e.target.value),
-                    })
-                  }
+                    });
+                    setInvalidFields((prev) => prev.filter((f) => f !== "experienceYears"));
+                  }}
                   required
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#06120b] text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("experienceYears")
+                      ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
+                      : "border border-[#173a27] focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30"
+                  }`}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-emerald-200">
-                  Total Proyek Selesai
+                <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                  <span>Total Proyek Selesai</span>
+                  {invalidFields.includes("completedProjects") && (
+                    <span className="text-[10px] text-amber-400 font-normal">Harus angka &gt;= 0</span>
+                  )}
                 </label>
                 <input
                   type="number"
                   min={0}
                   value={formData.completedProjects}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData({
                       ...formData,
                       completedProjects: Number(e.target.value),
-                    })
-                  }
+                    });
+                    setInvalidFields((prev) => prev.filter((f) => f !== "completedProjects"));
+                  }}
                   required
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition"
+                  className={`w-full px-4 py-2.5 rounded-xl bg-[#06120b] text-white text-sm focus:outline-none transition ${
+                    invalidFields.includes("completedProjects")
+                      ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
+                      : "border border-[#173a27] focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30"
+                  }`}
                 />
               </div>
             </div>
 
             {/* Image URL & Direct Upload */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-emerald-200">
-                Gambar / Foto Section Tentang
+              <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                <span>Gambar / Foto Section Tentang</span>
+                {invalidFields.includes("imageUrl") && (
+                  <span className="text-[10px] text-amber-400 font-normal">Wajib diisi / diunggah</span>
+                )}
               </label>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-[#06120b] border border-[#173a27]">
-                <div className="w-16 h-16 rounded-2xl bg-[#0a1e14] border border-emerald-500/30 overflow-hidden flex items-center justify-center shrink-0">
+              <div
+                className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-[#06120b] transition ${
+                  invalidFields.includes("imageUrl")
+                    ? "border-2 border-amber-500/80"
+                    : "border border-[#173a27]"
+                }`}
+              >
+                <div className="w-16 h-16 rounded-2xl bg-[#0a1e14] border border-emerald-500/30 overflow-hidden flex items-center justify-center shrink-0 relative">
                   {formData.imageUrl ? (
                     <img
                       src={formData.imageUrl}
@@ -271,6 +360,11 @@ export default function AdminAboutPage() {
                   ) : (
                     <FileText className="w-8 h-8 text-emerald-500/40" />
                   )}
+                  {uploadingImage && (
+                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center backdrop-blur-xs">
+                      <RefreshCw className="w-5 h-5 text-emerald-400 animate-spin" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 w-full space-y-2">
@@ -278,45 +372,42 @@ export default function AdminAboutPage() {
                     <input
                       type="text"
                       value={formData.imageUrl}
-                      onChange={(e) =>
-                        setFormData({ ...formData, imageUrl: e.target.value })
-                      }
-                      placeholder="https://... atau /uploads/..."
+                      onChange={(e) => {
+                        setFormData({ ...formData, imageUrl: e.target.value });
+                        if (e.target.value.trim()) setInvalidFields((prev) => prev.filter((f) => f !== "imageUrl"));
+                      }}
+                      placeholder="https://... atau data:image/..."
                       className="flex-1 px-4 py-2 rounded-xl bg-[#081810] border border-[#173a27] text-white text-xs font-mono focus:outline-none focus:border-emerald-400 transition"
                     />
-                    <label className="px-3.5 py-2 rounded-xl bg-[#0e271b] hover:bg-[#153827] text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition cursor-pointer flex items-center gap-1.5 shrink-0">
-                      <UploadCloud className="w-3.5 h-3.5" />
-                      <span>Unggah Gambar</span>
+                    <label
+                      className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 shrink-0 ${
+                        uploadingImage
+                          ? "bg-emerald-950 text-emerald-400 border-emerald-500/40 cursor-wait opacity-80"
+                          : "bg-[#0e271b] hover:bg-[#153827] text-emerald-300 border-emerald-500/30 cursor-pointer"
+                      }`}
+                    >
+                      {uploadingImage ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                          <span>Mengunggah...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="w-3.5 h-3.5" />
+                          <span>Unggah Gambar</span>
+                        </>
+                      )}
                       <input
                         type="file"
                         accept="image/*"
+                        disabled={uploadingImage}
                         className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const fd = new FormData();
-                          fd.append("file", file);
-                          try {
-                            const res = await fetch("/api/admin/upload", {
-                              method: "POST",
-                              body: fd,
-                            });
-                            const result = await res.json();
-                            if (res.ok && result.success) {
-                              setFormData((prev) => ({
-                                ...prev,
-                                imageUrl: result.data.url,
-                              }));
-                            }
-                          } catch {
-                            // ignore
-                          }
-                        }}
+                        onChange={handleImageUpload}
                       />
                     </label>
                   </div>
                   <p className="text-[10px] text-emerald-500/60">
-                    Format gambar: JPG, PNG, WebP, SVG.
+                    Format gambar: JPG, PNG, WebP, SVG (Maks. 10MB). Unggah langsung atau tempelkan URL gambar.
                   </p>
                 </div>
               </div>
@@ -335,7 +426,13 @@ export default function AdminAboutPage() {
               </div>
 
               {/* Items List */}
-              <div className="space-y-2 p-3 rounded-xl bg-[#06120b] border border-[#173a27]">
+              <div
+                className={`space-y-2 p-3 rounded-xl bg-[#06120b] transition ${
+                  invalidFields.includes("highlightPoints")
+                    ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
+                    : "border border-[#173a27]"
+                }`}
+              >
                 {formData.highlightPoints.length === 0 && (
                   <span className="text-xs text-emerald-600/70 italic py-1 block">
                     Belum ada poin sorotan. Tambahkan di bawah.
