@@ -30,6 +30,8 @@ interface PortfolioContextType {
   categories: CategoryItem[];
   projects: ProjectItem[];
   contact: ContactData;
+  isLoading: boolean;
+  isFetching: boolean;
   updateProfile: (data: Partial<ProfileData>) => void;
   updateAbout: (data: Partial<AboutData>) => void;
   updateContact: (data: Partial<ContactData>) => void;
@@ -60,8 +62,11 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   const [contact, setContact] = useState<ContactData>(() =>
     getLocalCache(CACHE_KEYS.CONTACT, initialContact)
   );
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
 
   const refreshContent = async () => {
+    setIsFetching(true);
     // 1. Immediately hydrate from local storage if available
     try {
       if (typeof window !== "undefined") {
@@ -116,6 +121,9 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.warn("Could not fetch latest content from API, using fallback data.", err);
+    } finally {
+      setIsFetching(false);
+      setIsLoading(false);
     }
   };
 
@@ -144,6 +152,8 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         categories,
         projects,
         contact,
+        isLoading,
+        isFetching,
         updateProfile,
         updateAbout,
         updateContact,

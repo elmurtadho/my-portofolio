@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Eye,
 } from "lucide-react";
+import { AdminMetricCardSkeleton } from "@/components/ui/Skeleton";
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -141,43 +142,49 @@ export default function AdminDashboardPage() {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {statCards.map((stat, idx) => {
-          const Icon = stat.icon;
-          return (
-            <Link
-              key={idx}
-              href={stat.href}
-              className="group p-5 rounded-2xl bg-[#091b12]/80 hover:bg-[#0d251a] border border-[#143423] hover:border-emerald-500/30 transition-all duration-200 flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-medium text-emerald-400/80">
-                  {stat.label}
-                </span>
-                <div
-                  className={`w-9 h-9 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center text-emerald-950 font-bold shadow-md shadow-emerald-500/10 group-hover:scale-110 transition-transform`}
-                >
-                  <Icon className="w-4 h-4" />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-white tracking-tight">
-                    {loading ? "..." : stat.value}
+        {loading ? (
+          [1, 2, 3, 4].map((idx) => (
+            <AdminMetricCardSkeleton key={idx} />
+          ))
+        ) : (
+          statCards.map((stat, idx) => {
+            const Icon = stat.icon;
+            return (
+              <Link
+                key={idx}
+                href={stat.href}
+                className="group p-5 rounded-2xl bg-[#091b12]/80 hover:bg-[#0d251a] border border-[#143423] hover:border-emerald-500/30 transition-all duration-200 flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-medium text-emerald-400/80">
+                    {stat.label}
                   </span>
-                  {stat.subValue && (
-                    <span className="text-xs font-semibold text-emerald-400">
-                      ({stat.subValue})
-                    </span>
-                  )}
+                  <div
+                    className={`w-9 h-9 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center text-emerald-950 font-bold shadow-md shadow-emerald-500/10 group-hover:scale-110 transition-transform`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
                 </div>
-                <p className="text-xs text-emerald-400/50 mt-1">
-                  {stat.description}
-                </p>
-              </div>
-            </Link>
-          );
-        })}
+
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-extrabold text-white tracking-tight">
+                      {stat.value}
+                    </span>
+                    {stat.subValue && (
+                      <span className="text-xs font-semibold text-emerald-400">
+                        ({stat.subValue})
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-emerald-400/50 mt-1">
+                    {stat.description}
+                  </p>
+                </div>
+              </Link>
+            );
+          })
+        )}
       </div>
 
       {/* Quick Navigation Cards */}

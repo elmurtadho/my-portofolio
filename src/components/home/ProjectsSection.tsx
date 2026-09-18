@@ -6,13 +6,26 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FolderGit2, Play, Box, Image as ImageIcon, ExternalLink, Sparkles, Filter, X, Palette, Film, Layout, Grid } from "lucide-react";
 import { ProjectItem, CategoryItem } from "@/lib/mock-data";
 import { ProjectCard } from "@/components/ui/ProjectCard";
+import { ProjectCardSkeleton } from "@/components/ui/Skeleton";
+import { usePortfolio } from "@/context/PortfolioContext";
 
 interface ProjectsSectionProps {
   projects: ProjectItem[];
   categories: CategoryItem[];
+  isLoading?: boolean;
+  isFetching?: boolean;
 }
 
-export function ProjectsSection({ projects, categories }: ProjectsSectionProps) {
+export function ProjectsSection({
+  projects,
+  categories,
+  isLoading: propLoading,
+  isFetching: propFetching,
+}: ProjectsSectionProps) {
+  const { isLoading: ctxLoading, isFetching: ctxFetching } = usePortfolio();
+  const isLoading = propLoading !== undefined ? propLoading : ctxLoading;
+  const isFetching = propFetching !== undefined ? propFetching : ctxFetching;
+
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("all");
   const [activeMediaModal, setActiveMediaModal] = useState<ProjectItem | null>(null);
@@ -179,24 +192,32 @@ export function ProjectsSection({ projects, categories }: ProjectsSectionProps) 
           </span>
         </div>
 
-        {/* Projects Animated Grid */}
-        <motion.div
-          layout
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          <AnimatePresence mode="popLayout">
-            {filteredProjects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onPreview={handlePreview}
-              />
+        {/* Projects Animated Grid or Skeletons */}
+        {(isLoading || isFetching) && projects.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3, 4, 5, 6].map((idx) => (
+              <ProjectCardSkeleton key={idx} />
             ))}
-          </AnimatePresence>
-        </motion.div>
+          </div>
+        ) : (
+          <motion.div
+            layout
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            <AnimatePresence mode="popLayout">
+              {filteredProjects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  onPreview={handlePreview}
+                />
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        )}
 
-        {/* Empty State if filter yields no items */}
-        {filteredProjects.length === 0 && (
+        {/* Empty State if filter yields no items and not loading */}
+        {filteredProjects.length === 0 && !isLoading && (!isFetching || projects.length > 0) && (
           <div className="text-center py-16 p-8 rounded-2xl bg-[#0b1c14] border border-[#1a3d2c]">
             <FolderGit2 className="w-12 h-12 text-emerald-400/40 mx-auto mb-3" />
             <p className="text-base font-bold text-white">Belum Ada Karya</p>

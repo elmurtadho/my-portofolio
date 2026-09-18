@@ -15,6 +15,7 @@ interface ProjectCardProps {
 export function ProjectCard({ project, onPreview }: ProjectCardProps) {
   const router = useRouter();
   const [isPlayingInline, setIsPlayingInline] = React.useState(false);
+  const [imageLoaded, setImageLoaded] = React.useState(false);
 
   const is3D = project.mediaType === "model3d";
   const review3DUrl = `/karya-3d/${project.id}`;
@@ -83,10 +84,19 @@ export function ProjectCard({ project, onPreview }: ProjectCardProps) {
           </div>
         ) : (
           <>
+            {/* Shimmer skeleton placeholder while image is fetching/loading */}
+            {!imageLoaded && (
+              <div className="absolute inset-0 bg-[#0c2419] animate-pulse before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmerSweep_2.5s_infinite] before:bg-gradient-to-r before:from-transparent before:via-emerald-400/10 before:to-transparent" />
+            )}
             <img
               src={project.thumbnailUrl}
               alt={project.title}
-              className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+              loading="lazy"
+              decoding="async"
+              onLoad={() => setImageLoaded(true)}
+              className={`w-full h-full object-cover group-hover:scale-108 transition-all duration-700 ease-out ${
+                imageLoaded ? "opacity-100" : "opacity-0"
+              }`}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0b1c14] via-transparent to-black/40" />
 

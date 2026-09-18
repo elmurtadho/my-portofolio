@@ -13,6 +13,7 @@ interface HeroSectionProps {
 
 export function HeroSection({ profile, about, totalProjects }: HeroSectionProps) {
   const [imageError, setImageError] = React.useState(false);
+  const [imgLoaded, setImgLoaded] = React.useState(false);
 
   // Ensure we have a list of roles to rotate in typewriter
   const roleList =
@@ -161,11 +162,19 @@ export function HeroSection({ profile, about, totalProjects }: HeroSectionProps)
                 <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-5 border border-[#1a402e] group bg-[#06140c] flex items-center justify-center">
                   {profile.photoUrl && !imageError ? (
                     <>
+                      {!imgLoaded && (
+                        <div className="absolute inset-0 bg-[#0c2419] animate-pulse before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmerSweep_2.5s_infinite] before:bg-gradient-to-r before:from-transparent before:via-emerald-400/10 before:to-transparent" />
+                      )}
                       <img
                         src={profile.photoUrl}
                         alt={profile.displayName}
+                        loading="lazy"
+                        decoding="async"
+                        onLoad={() => setImgLoaded(true)}
                         onError={() => setImageError(true)}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${
+                          imgLoaded ? "opacity-100" : "opacity-0"
+                        }`}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0b1c14] via-transparent to-transparent opacity-50 pointer-events-none" />
                     </>

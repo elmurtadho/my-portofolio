@@ -26,6 +26,7 @@ import {
   mergeOrSyncData,
   CACHE_KEYS,
 } from "@/lib/client/admin-api";
+import { AdminCategoryCardSkeleton } from "@/components/ui/Skeleton";
 
 interface CategoryItem {
   id: number;
@@ -339,10 +340,9 @@ export default function AdminCategoriesPage() {
       {/* Categories Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {loading ? (
-          <div className="col-span-full py-16 text-center text-emerald-400/60 text-xs">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-400" />
-            <span>Memuat data kategori...</span>
-          </div>
+          [1, 2, 3, 4].map((idx) => (
+            <AdminCategoryCardSkeleton key={idx} />
+          ))
         ) : categories.length === 0 ? (
           <div className="col-span-full py-16 text-center rounded-2xl bg-[#081810] border border-[#143423] p-8">
             <FolderOpen className="w-10 h-10 text-emerald-500/30 mx-auto mb-3" />

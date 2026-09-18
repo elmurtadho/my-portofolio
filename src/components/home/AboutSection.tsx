@@ -12,6 +12,7 @@ interface AboutSectionProps {
 
 export function AboutSection({ about, profile }: AboutSectionProps) {
   const [imageError, setImageError] = React.useState(false);
+  const [imgLoaded, setImgLoaded] = React.useState(false);
 
   const milestones = [
     {
@@ -65,11 +66,19 @@ export function AboutSection({ about, profile }: AboutSectionProps) {
             <div className="relative mx-auto max-w-md lg:max-w-none rounded-2xl overflow-hidden border border-[#1f4b36] shadow-2xl bg-[#091a11] group min-h-[420px] flex items-center justify-center">
               {about.imageUrl && !imageError ? (
                 <>
+                  {!imgLoaded && (
+                    <div className="absolute inset-0 bg-[#0c2419] animate-pulse before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmerSweep_2.5s_infinite] before:bg-gradient-to-r before:from-transparent before:via-emerald-400/10 before:to-transparent" />
+                  )}
                   <img
                     src={about.imageUrl}
                     alt="Tentang Saya"
+                    loading="lazy"
+                    decoding="async"
+                    onLoad={() => setImgLoaded(true)}
                     onError={() => setImageError(true)}
-                    className="w-full h-[450px] object-cover group-hover:scale-105 transition-transform duration-700"
+                    className={`w-full h-[450px] object-cover group-hover:scale-105 transition-all duration-700 ${
+                      imgLoaded ? "opacity-100" : "opacity-0"
+                    }`}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#070f0b] via-[#070f0b]/30 to-transparent pointer-events-none" />
                 </>

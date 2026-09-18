@@ -16,12 +16,24 @@ import {
 } from "lucide-react";
 import { SkillItem } from "@/lib/mock-data";
 import { AnimatedSkillBar } from "@/components/ui/AnimatedSkillBar";
+import { SkillItemSkeleton } from "@/components/ui/Skeleton";
+import { usePortfolio } from "@/context/PortfolioContext";
 
 interface SkillsSectionProps {
   skills: SkillItem[];
+  isLoading?: boolean;
+  isFetching?: boolean;
 }
 
-export function SkillsSection({ skills }: SkillsSectionProps) {
+export function SkillsSection({
+  skills,
+  isLoading: propLoading,
+  isFetching: propFetching,
+}: SkillsSectionProps) {
+  const { isLoading: ctxLoading, isFetching: ctxFetching } = usePortfolio();
+  const isLoading = propLoading !== undefined ? propLoading : ctxLoading;
+  const isFetching = propFetching !== undefined ? propFetching : ctxFetching;
+
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -141,20 +153,29 @@ export function SkillsSection({ skills }: SkillsSectionProps) {
         </div>
 
         {/* Skills Grid with Animated Fill Bars */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSkills.map((skill, index) => (
-            <AnimatedSkillBar
-              key={skill.id}
-              name={skill.name}
-              level={skill.level}
-              category={skill.category}
-              icon={skill.icon || getCategoryIcon(skill.category)}
-              delay={index}
-            />
-          ))}
-        </div>
+        {/* Skills Grid with Animated Fill Bars or Skeletons */}
+        {(isLoading || isFetching) && skills.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((idx) => (
+              <SkillItemSkeleton key={idx} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSkills.map((skill, index) => (
+              <AnimatedSkillBar
+                key={skill.id}
+                name={skill.name}
+                level={skill.level}
+                category={skill.category}
+                icon={skill.icon || getCategoryIcon(skill.category)}
+                delay={index}
+              />
+            ))}
+          </div>
+        )}
 
-        {filteredSkills.length === 0 && (
+        {filteredSkills.length === 0 && !isLoading && (!isFetching || skills.length > 0) && (
           <div className="text-center py-12 p-6 rounded-2xl bg-[#0b1c14] border border-[#1b3d2d]">
             <p className="text-sm font-bold text-white">Tidak ada keahlian yang cocok</p>
             <p className="text-xs text-emerald-300/60 mt-1">

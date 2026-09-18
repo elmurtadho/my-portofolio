@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { adminFetch, getLocalCache, setLocalCache, CACHE_KEYS } from "@/lib/client/admin-api";
+import { AdminInquirySkeleton } from "@/components/ui/Skeleton";
 
 interface InquiryItem {
   id: string;
@@ -232,10 +233,9 @@ export default function AdminInquiriesPage() {
         {/* List of Messages */}
         <div className="lg:col-span-2 space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
           {loading ? (
-            <div className="py-16 text-center text-emerald-400/60 text-xs">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-400" />
-              <span>Memuat pesan masuk...</span>
-            </div>
+            [1, 2, 3, 4].map((idx) => (
+              <AdminInquirySkeleton key={idx} />
+            ))
           ) : filteredInquiries.length === 0 ? (
             <div className="py-16 text-center rounded-2xl bg-[#081810] border border-[#143423] p-8">
               <Inbox className="w-10 h-10 text-emerald-500/30 mx-auto mb-3" />

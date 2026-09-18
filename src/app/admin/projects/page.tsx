@@ -33,6 +33,7 @@ import {
 import { AdminFeedback, AdminFeedbackState } from "@/components/admin/AdminFeedback";
 import { uploadMediaFile, captureVideoThumbnail, isVideoFile } from "@/lib/client/upload";
 import ImageCropModal from "@/components/admin/ImageCropModal";
+import { AdminProjectCardSkeleton, AdminTableRowSkeleton } from "@/components/ui/Skeleton";
 import {
   adminFetch,
   getLocalCache,
@@ -685,7 +686,7 @@ export default function AdminProjectsPage() {
       </div>
 
       {/* Projects Display: Table or Grid */}
-      {viewMode === "table" && !loading && filteredProjects.length > 0 ? (
+      {viewMode === "table" ? (
         <div className="rounded-2xl bg-[#081810] border border-[#163826] overflow-hidden shadow-xl shadow-black/20">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-emerald-200/80">
@@ -700,85 +701,101 @@ export default function AdminProjectsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#143423]">
-                {filteredProjects.map((proj) => (
-                  <tr
-                    key={proj.id}
-                    className="hover:bg-[#0d281a]/50 transition-colors group"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-[#050e08] overflow-hidden shrink-0 border border-[#143423] flex items-center justify-center">
-                          {proj.mediaType === "video" ? (
-                            <Video className="w-4 h-4 text-emerald-400" />
-                          ) : proj.mediaType === "model3d" ? (
-                            <Box className="w-4 h-4 text-teal-400" />
-                          ) : (
-                            <img
-                              src={proj.thumbnailUrl || proj.mediaUrl || "/placeholder.jpg"}
-                              alt={proj.title}
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-white group-hover:text-emerald-300 transition-colors">
-                            {proj.title}
-                          </p>
-                          <p className="text-[10px] text-emerald-500/60 line-clamp-1 max-w-xs">
-                            {proj.description || "Tidak ada deskripsi"}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold uppercase">
-                        {proj.categorySlug}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[10px] uppercase text-emerald-300">
-                      {proj.mediaType}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1 max-w-xs">
-                        {proj.tags?.slice(0, 2).map((t, i) => (
-                          <span
-                            key={i}
-                            className="px-1.5 py-0.5 rounded bg-[#06120b] text-[10px] text-emerald-400/80"
-                          >
-                            #{t}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => toggleFeatured(proj)}
-                        className={`p-1 rounded ${
-                          proj.featured ? "text-amber-400" : "text-emerald-500/30 hover:text-amber-400"
-                        }`}
-                      >
-                        <Star className={`w-4 h-4 ${proj.featured ? "fill-amber-400" : ""}`} />
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEditModal(proj)}
-                          className="p-1.5 rounded-lg bg-[#0e271b] hover:bg-[#153827] text-emerald-300 hover:text-white"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(proj.id, proj.title)}
-                          disabled={deletingId === proj.id}
-                          className="p-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-950/70 text-rose-400 hover:text-rose-300"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                {loading ? (
+                  [1, 2, 3, 4, 5].map((idx) => (
+                    <AdminTableRowSkeleton key={idx} />
+                  ))
+                ) : filteredProjects.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center text-emerald-400/60">
+                      <Briefcase className="w-8 h-8 text-emerald-500/30 mx-auto mb-2" />
+                      <p className="font-semibold text-white">Tidak ada karya ditemukan</p>
+                      <p className="text-[11px] mt-0.5">Tambahkan karya baru untuk kategori ini.</p>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredProjects.map((proj) => (
+                    <tr
+                      key={proj.id}
+                      className="hover:bg-[#0d281a]/50 transition-colors group"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-[#050e08] overflow-hidden shrink-0 border border-[#143423] flex items-center justify-center">
+                            {proj.mediaType === "video" ? (
+                              <Video className="w-4 h-4 text-emerald-400" />
+                            ) : proj.mediaType === "model3d" ? (
+                              <Box className="w-4 h-4 text-teal-400" />
+                            ) : (
+                              <img
+                                src={proj.thumbnailUrl || proj.mediaUrl || "/placeholder.jpg"}
+                                alt={proj.title}
+                                loading="lazy"
+                                decoding="async"
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-white group-hover:text-emerald-300 transition-colors">
+                              {proj.title}
+                            </p>
+                            <p className="text-[10px] text-emerald-500/60 line-clamp-1 max-w-xs">
+                              {proj.description || "Tidak ada deskripsi"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold uppercase">
+                          {proj.categorySlug}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-[10px] uppercase text-emerald-300">
+                        {proj.mediaType}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {proj.tags?.slice(0, 2).map((t, i) => (
+                            <span
+                              key={i}
+                              className="px-1.5 py-0.5 rounded bg-[#06120b] text-[10px] text-emerald-400/80"
+                            >
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => toggleFeatured(proj)}
+                          className={`p-1 rounded ${
+                            proj.featured ? "text-amber-400" : "text-emerald-500/30 hover:text-amber-400"
+                          }`}
+                        >
+                          <Star className={`w-4 h-4 ${proj.featured ? "fill-amber-400" : ""}`} />
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => openEditModal(proj)}
+                            className="p-1.5 rounded-lg bg-[#0e271b] hover:bg-[#153827] text-emerald-300 hover:text-white"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(proj.id, proj.title)}
+                            disabled={deletingId === proj.id}
+                            className="p-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-950/70 text-rose-400 hover:text-rose-300"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -786,21 +803,19 @@ export default function AdminProjectsPage() {
       ) : (
         /* Projects Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-        {loading ? (
-          <div className="col-span-full py-16 text-center text-emerald-400/60 text-xs">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-400" />
-            <span>Memuat data karya...</span>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="col-span-full py-16 text-center rounded-2xl bg-[#081810] border border-[#143423] p-8">
-            <Briefcase className="w-10 h-10 text-emerald-500/30 mx-auto mb-3" />
-            <h4 className="text-sm font-bold text-white">Tidak ada karya ditemukan</h4>
-            <p className="text-xs text-emerald-400/60 mt-1">
-              Tambahkan karya baru untuk kategori ini.
-            </p>
-          </div>
-        ) : (
+          {loading ? (
+            [1, 2, 3, 4, 5, 6].map((idx) => (
+              <AdminProjectCardSkeleton key={idx} />
+            ))
+          ) : filteredProjects.length === 0 ? (
+            <div className="col-span-full py-16 text-center rounded-2xl bg-[#081810] border border-[#143423] p-8">
+              <Briefcase className="w-10 h-10 text-emerald-500/30 mx-auto mb-3" />
+              <h4 className="text-sm font-bold text-white">Tidak ada karya ditemukan</h4>
+              <p className="text-xs text-emerald-400/60 mt-1">
+                Tambahkan karya baru untuk kategori ini.
+              </p>
+            </div>
+          ) : (
           filteredProjects.map((proj) => (
             <div
               key={proj.id}
@@ -822,6 +837,8 @@ export default function AdminProjectsPage() {
                   <img
                     src={proj.thumbnailUrl || proj.mediaUrl || "/placeholder.jpg"}
                     alt={proj.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = "none";

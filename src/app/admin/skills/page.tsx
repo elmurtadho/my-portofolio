@@ -28,6 +28,7 @@ import {
 import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
 import { uploadMediaFile } from "@/lib/client/upload";
 import { initialSkills } from "@/lib/mock-data";
+import { AdminSkillCardSkeleton } from "@/components/ui/Skeleton";
 import {
   adminFetch,
   getLocalCache,
@@ -457,10 +458,9 @@ export default function AdminSkillsPage() {
       {/* Skills Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {loading ? (
-          <div className="col-span-full py-16 text-center text-emerald-400/60 text-xs">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-400" />
-            <span>Memuat data keahlian...</span>
-          </div>
+          [1, 2, 3, 4, 5, 6].map((idx) => (
+            <AdminSkillCardSkeleton key={idx} />
+          ))
         ) : filteredSkills.length === 0 ? (
           <div className="col-span-full py-16 text-center rounded-2xl bg-[#081810] border border-[#143423] p-8">
             <Sparkles className="w-10 h-10 text-emerald-500/30 mx-auto mb-3" />
