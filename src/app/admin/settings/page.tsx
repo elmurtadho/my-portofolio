@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Settings,
   Lock,
@@ -13,8 +13,12 @@ import {
   Download,
   Server,
   RefreshCw,
+  Globe,
+  Mail,
+  Sliders,
 } from "lucide-react";
 import AdminFeedback, { AdminFeedbackState } from "@/components/admin/AdminFeedback";
+import { adminFetch } from "@/lib/client/admin-api";
 
 export default function AdminSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -23,6 +27,32 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<AdminFeedbackState | null>(null);
   const [invalidFields, setInvalidFields] = useState<string[]>([]);
+
+  // Site Settings States
+  const [siteTitle, setSiteTitle] = useState("MintFolio Interaktif");
+  const [adminEmail, setAdminEmail] = useState("almurtadha221103@gmail.com");
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [savingSiteSettings, setSavingSiteSettings] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await adminFetch("/api/admin/settings");
+        if (res.ok && res.data?.success && res.data?.data?.settings) {
+          const s = res.data.data.settings;
+          if (s.siteTitle) setSiteTitle(s.siteTitle);
+          if (s.adminEmail) setAdminEmail(s.adminEmail);
+          if (typeof s.maintenanceMode === "boolean") setMaintenanceMode(s.maintenanceMode);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoadingSettings(false);
+      }
+    }
+    loadSettings();
+  }, []);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,18 +95,16 @@ export default function AdminSettingsPage() {
     setInvalidFields([]);
     setSaving(true);
     try {
-      // Send auth verification / password change
-      const res = await fetch("/api/admin/auth", {
+      // Send auth verification / password change using authenticated adminFetch
+      const res = await adminFetch("/api/admin/auth", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           currentPassword,
           newPassword,
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok && res.data?.success) {
         setFeedback({
           type: "success",
           message: "Kata sandi admin berhasil diperbarui!",
@@ -87,20 +115,53 @@ export default function AdminSettingsPage() {
       } else {
         setFeedback({
           type: "error",
-          message: data.error || "Kata sandi lama tidak sesuai.",
+          message: res.error || res.data?.error || "Kata sandi lama tidak sesuai.",
         });
       }
     } catch {
-      // Mock fallback
       setFeedback({
-        type: "success",
-        message: "Kata sandi admin berhasil diperbarui untuk sesi ini.",
+        type: "error",
+        message: "Gagal menghubungi server untuk mengubah kata sandi.",
       });
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveSiteSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    setSavingSiteSettings(true);
+
+    try {
+      const res = await adminFetch("/api/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          siteTitle: siteTitle.trim(),
+          adminEmail: adminEmail.trim(),
+          maintenanceMode,
+        }),
+      });
+
+      if (res.ok && res.data?.success) {
+        setFeedback({
+          type: "success",
+          message: "Pengaturan umum situs berhasil diperbarui!",
+        });
+        setTimeout(() => setFeedback(null), 4000);
+      } else {
+        setFeedback({
+          type: "error",
+          message: res.error || res.data?.error || "Gagal memperbarui pengaturan situs.",
+        });
+      }
+    } catch {
+      setFeedback({
+        type: "error",
+        message: "Terjadi kesalahan jaringan saat menyimpan pengaturan situs.",
+      });
+    } finally {
+      setSavingSiteSettings(false);
     }
   };
 
@@ -236,6 +297,75 @@ export default function AdminSettingsPage() {
             >
               <Save className="w-4 h-4" />
               <span>{saving ? "Menyimpan..." : "Perbarui Kata Sandi"}</span>
+            </button>
+          </form>
+        </div>
+
+        {/* General Site Settings Form */}
+        <div className="p-6 sm:p-8 rounded-2xl bg-[#091b12]/90 border border-[#163826] shadow-xl shadow-black/30 space-y-6">
+          <div className="flex items-center gap-2 pb-3 border-b border-[#143423]">
+            <Globe className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-base font-bold text-white">
+              Pengaturan Umum Situs
+            </h3>
+          </div>
+
+          <form onSubmit={handleSaveSiteSettings} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-emerald-200">
+                Judul Situs Portofolio (Site Title)
+              </label>
+              <div className="relative">
+                <Sliders className="w-4 h-4 text-emerald-500/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={siteTitle}
+                  onChange={(e) => setSiteTitle(e.target.value)}
+                  placeholder="Misal: MintFolio Interaktif"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-emerald-200">
+                Email Notifikasi Admin
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-emerald-500/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="email"
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  placeholder="admin@mintfolio.local"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#06120b] border border-[#173a27] text-white text-sm focus:outline-none focus:border-emerald-400 transition"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <input
+                type="checkbox"
+                id="maintenanceMode"
+                checked={maintenanceMode}
+                onChange={(e) => setMaintenanceMode(e.target.checked)}
+                className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+              />
+              <label
+                htmlFor="maintenanceMode"
+                className="text-xs font-semibold text-emerald-200 cursor-pointer"
+              >
+                Mode Pemeliharaan (Maintenance Mode)
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={savingSiteSettings}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-emerald-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.01] disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              <span>{savingSiteSettings ? "Menyimpan..." : "Simpan Pengaturan Situs"}</span>
             </button>
           </form>
         </div>

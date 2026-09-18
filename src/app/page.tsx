@@ -23,12 +23,16 @@ export default function HomePage() {
 
       {/* Hero Section with Scroll Reveal */}
       <ScrollReveal direction="up" distance={20} duration={0.8}>
-        <HeroSection profile={profile} />
+        <HeroSection
+          profile={profile}
+          about={about}
+          totalProjects={projects?.length}
+        />
       </ScrollReveal>
 
       {/* About Section with Scroll Reveal */}
       <ScrollReveal direction="up" distance={35}>
-        <AboutSection about={about} />
+        <AboutSection about={about} profile={profile} />
       </ScrollReveal>
 
       {/* Skills Section with Scroll Reveal */}

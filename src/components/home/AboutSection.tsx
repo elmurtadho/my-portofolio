@@ -2,14 +2,15 @@
 
 import React from "react";
 import { CheckCircle2, User, Award, Layers, Sparkles, FileText, Compass, HeartHandshake } from "lucide-react";
-import { AboutData } from "@/lib/mock-data";
+import { AboutData, ProfileData } from "@/lib/mock-data";
 import { AnimatedTextNarrative } from "@/components/ui/AnimatedTextNarrative";
 
 interface AboutSectionProps {
   about: AboutData;
+  profile?: ProfileData;
 }
 
-export function AboutSection({ about }: AboutSectionProps) {
+export function AboutSection({ about, profile }: AboutSectionProps) {
   const [imageError, setImageError] = React.useState(false);
 
   const milestones = [
@@ -86,10 +87,12 @@ export function AboutSection({ about }: AboutSectionProps) {
 
                   <div className="space-y-2 relative z-10">
                     <h3 className="text-2xl font-bold text-white tracking-tight font-designer">
-                      Ahmad Elmurtadho
+                      {profile?.displayName || "Ahmad Elmurtadho"}
                     </h3>
                     <p className="text-xs text-emerald-300/80 leading-relaxed">
-                      Multidisciplinary Designer &bull; UI/UX &bull; 3D &bull; Motion
+                      {profile?.roles && profile.roles.length > 0
+                        ? profile.roles.slice(0, 4).join(" • ")
+                        : "Multidisciplinary Designer • UI/UX • 3D • Motion"}
                     </p>
                     <div className="pt-2 flex flex-wrap gap-1.5">
                       {["Figma", "Blender", "Three.js", "After Effects"].map((tool) => (

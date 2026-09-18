@@ -2,14 +2,16 @@
 
 import React from "react";
 import { ArrowRight, Sparkles, Mail, Eye, Box, Palette, Video, FileText } from "lucide-react";
-import { ProfileData } from "@/lib/mock-data";
+import { ProfileData, AboutData } from "@/lib/mock-data";
 import { Typewriter } from "@/components/ui/Typewriter";
 
 interface HeroSectionProps {
   profile: ProfileData;
+  about?: AboutData;
+  totalProjects?: number;
 }
 
-export function HeroSection({ profile }: HeroSectionProps) {
+export function HeroSection({ profile, about, totalProjects }: HeroSectionProps) {
   const [imageError, setImageError] = React.useState(false);
 
   // Ensure we have a list of roles to rotate in typewriter
@@ -45,7 +47,7 @@ export function HeroSection({ profile }: HeroSectionProps) {
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
               </span>
               <span className="text-xs font-semibold text-emerald-300">
-                Tersedia untuk proyek freelance &amp; full-time
+                {profile.status || "Tersedia untuk proyek freelance & full-time"}
               </span>
             </div>
 
@@ -116,15 +118,21 @@ export function HeroSection({ profile }: HeroSectionProps) {
             {/* Micro Badges / Highlights */}
             <div className="grid grid-cols-3 gap-4 pt-6 w-full max-w-lg border-t border-[#163627]">
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-white">4+</div>
+                <div className="text-2xl sm:text-3xl font-black text-white">
+                  {about?.experienceYears !== undefined ? `${about.experienceYears}+` : "4+"}
+                </div>
                 <div className="text-xs text-emerald-300/70 font-medium mt-0.5">Tahun Pengalaman</div>
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-emerald-300">48+</div>
+                <div className="text-2xl sm:text-3xl font-black text-emerald-300">
+                  {about?.completedProjects !== undefined ? `${about.completedProjects}+` : totalProjects ? `${totalProjects}+` : "48+"}
+                </div>
                 <div className="text-xs text-emerald-300/70 font-medium mt-0.5">Karya Selesai</div>
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-white">100%</div>
+                <div className="text-2xl sm:text-3xl font-black text-white">
+                  {about?.satisfiedClients !== undefined ? `${about.satisfiedClients}%` : "100%"}
+                </div>
                 <div className="text-xs text-emerald-300/70 font-medium mt-0.5">Klien Puas</div>
               </div>
             </div>

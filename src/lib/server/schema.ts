@@ -55,6 +55,9 @@ export function validateAbout(input: any): ValidationResult<Partial<AboutModel>>
   if (input.completedProjects !== undefined && (typeof input.completedProjects !== 'number' || input.completedProjects < 0)) {
     errors.push('Jumlah proyek selesai harus berupa angka positif');
   }
+  if (input.satisfiedClients !== undefined && (typeof input.satisfiedClients !== 'number' || input.satisfiedClients < 0)) {
+    errors.push('Jumlah klien puas harus berupa angka positif');
+  }
   if (input.highlightPoints !== undefined && !Array.isArray(input.highlightPoints)) {
     errors.push('Poin sorotan harus berupa array teks');
   }

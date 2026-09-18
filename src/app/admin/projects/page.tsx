@@ -380,7 +380,6 @@ export default function AdminProjectsPage() {
     if (!formData.title.trim()) missing.push({ key: "title", label: "Judul Karya / Proyek" });
     if (!formData.categorySlug) missing.push({ key: "categorySlug", label: "Kategori Bidang Desain" });
     if (!formData.mediaUrl.trim()) missing.push({ key: "mediaUrl", label: "URL Media Utama / Unggah Berkas" });
-    if (!formData.description.trim()) missing.push({ key: "description", label: "Deskripsi Karya" });
 
     if (missing.length > 0) {
       setInvalidFields(missing.map((m) => m.key));

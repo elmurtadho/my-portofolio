@@ -33,6 +33,7 @@ export default function AdminAboutPage() {
     bio: "Saya adalah seorang desainer dan pengembang kreatif dengan spesialisasi dalam merancang antarmuka digital yang intuitif, visual branding yang kuat, serta pengalaman web 3D yang imersif. Memadukan estetika modern Dark Mint Green dengan performa kode kelas dunia untuk membantu brand dan klien mewujudkan visi digital mereka.",
     experienceYears: 5,
     completedProjects: 42,
+    satisfiedClients: 35,
     imageUrl: "",
     highlightPoints: [
       "Desain Antarmuka UI/UX Berbasis Data & Design System Komprehensif",
@@ -176,6 +177,7 @@ export default function AdminAboutPage() {
       ...formData,
       experienceYears: Number(formData.experienceYears),
       completedProjects: Number(formData.completedProjects),
+      satisfiedClients: Number(formData.satisfiedClients !== undefined ? formData.satisfiedClients : 100),
     };
 
     try {
@@ -278,13 +280,13 @@ export default function AdminAboutPage() {
               />
             </div>
 
-            {/* Metrics: Experience & Projects */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Metrics: Experience, Projects & Satisfied Clients */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
-                  <span>Tahun Pengalaman (Tahun)</span>
+                  <span>Tahun Pengalaman</span>
                   {invalidFields.includes("experienceYears") && (
-                    <span className="text-[10px] text-amber-400 font-normal">Harus angka &gt;= 0</span>
+                    <span className="text-[10px] text-amber-400 font-normal">&gt;= 0</span>
                   )}
                 </label>
                 <input
@@ -309,9 +311,9 @@ export default function AdminAboutPage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
-                  <span>Total Proyek Selesai</span>
+                  <span>Total Karya Selesai</span>
                   {invalidFields.includes("completedProjects") && (
-                    <span className="text-[10px] text-amber-400 font-normal">Harus angka &gt;= 0</span>
+                    <span className="text-[10px] text-amber-400 font-normal">&gt;= 0</span>
                   )}
                 </label>
                 <input
@@ -331,6 +333,26 @@ export default function AdminAboutPage() {
                       ? "border-2 border-amber-500 ring-1 ring-amber-500/50"
                       : "border border-[#173a27] focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30"
                   }`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-emerald-200 flex items-center justify-between">
+                  <span>Klien Puas (%)</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={formData.satisfiedClients !== undefined ? formData.satisfiedClients : 100}
+                  onChange={(e) => {
+                    setFormData({
+                      ...formData,
+                      satisfiedClients: Number(e.target.value),
+                    });
+                  }}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#06120b] text-white text-sm border border-[#173a27] focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 focus:outline-none transition"
                 />
               </div>
             </div>

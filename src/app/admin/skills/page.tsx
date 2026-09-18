@@ -172,7 +172,7 @@ export default function AdminSkillsPage() {
     setFormData({
       name: "",
       level: 85,
-      category: "Design & UI/UX",
+      category: "UI/UX",
       icon: "",
     });
     setModalOpen(true);
@@ -609,6 +609,9 @@ export default function AdminSkillsPage() {
                   <option value="3D">3D Visual (Modeling, Animasi & WebGL)</option>
                   <option value="Video">Video Motion (Motion Graphic & Editing)</option>
                   <option value="Tech">Teknologi Web (Frontend & Creative Code)</option>
+                  {formData.category && !["UI/UX", "Design", "3D", "Video", "Tech"].includes(formData.category) && (
+                    <option value={formData.category}>{formData.category}</option>
+                  )}
                 </select>
               </div>
 

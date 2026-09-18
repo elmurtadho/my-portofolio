@@ -68,10 +68,30 @@ export default function Karya3DReviewPage({
   const projectId = parseInt(resolvedParams.id, 10);
 
   // Find project or fallback to first 3D project
-  const project =
-    initialProjects.find((p) => p.id === projectId) ||
-    initialProjects.find((p) => p.categorySlug === "3d-modeling") ||
-    initialProjects[3];
+  const [project, setProject] = useState<ProjectItem>(() => {
+    return (
+      initialProjects.find((p) => p.id === projectId) ||
+      initialProjects.find((p) => p.categorySlug === "3d-modeling") ||
+      initialProjects[3]
+    );
+  });
+  const [allProjects, setAllProjects] = useState<ProjectItem[]>(initialProjects);
+
+  useEffect(() => {
+    fetch("/api/content")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data?.projects)) {
+          const list: ProjectItem[] = json.data.projects;
+          setAllProjects(list);
+          const found = list.find((p) => p.id === projectId) || list.find((p) => p.categorySlug === "3d-modeling");
+          if (found) {
+            setProject(found);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   const modelKey = project.modelKey || (project.id === 6 ? "cyber-helmet" : project.id === 7 ? "beverage-can" : "packaging-box");
 
@@ -124,8 +144,8 @@ export default function Karya3DReviewPage({
   const currentExplodeRef = useRef<number>(0);
 
   // Other 3D projects for quick navigation
-  const other3DProjects = initialProjects.filter(
-    (p) => p.categorySlug === "3d-modeling" && p.id !== project.id
+  const other3DProjects = allProjects.filter(
+    (p) => (p.categorySlug === "3d-modeling" || p.mediaType === "model3d") && p.id !== project.id
   );
 
   // Setup Three.js Scene

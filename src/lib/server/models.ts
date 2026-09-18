@@ -14,6 +14,7 @@ export interface AboutModel {
   bio: string;
   experienceYears: number;
   completedProjects: number;
+  satisfiedClients?: number;
   highlightPoints: string[];
   imageUrl: string;
   updatedAt: string;

@@ -58,13 +58,17 @@ export async function PUT(
 
     if (body.categorySlug) {
       const categories = await getCategories();
-      const cleanSlug = String(body.categorySlug).trim().toLowerCase();
+      let cleanSlug = String(body.categorySlug).trim().toLowerCase();
+
+      // Map common aliases
+      if (cleanSlug === 'ui/ux' || cleanSlug === 'uiux') cleanSlug = 'ui-ux';
+      if (cleanSlug === 'graphic' || cleanSlug === 'desain-grafis') cleanSlug = 'graphic-design';
+      if (cleanSlug === 'video' || cleanSlug === 'video-motion') cleanSlug = 'video-editor';
+      if (cleanSlug === '3d' || cleanSlug === '3d-visual') cleanSlug = '3d-modeling';
+
       const exists = categories.some((c) => c.slug.toLowerCase() === cleanSlug);
-      if (!exists) {
-        return NextResponse.json(
-          { success: false, error: `Kategori '${body.categorySlug}' tidak ditemukan.` },
-          { status: 400 }
-        );
+      if (!exists && categories.length > 0) {
+        cleanSlug = categories[0].slug;
       }
       if (validation.data) {
         validation.data.categorySlug = cleanSlug;
@@ -111,13 +115,17 @@ export async function PATCH(
 
     if (body.categorySlug) {
       const categories = await getCategories();
-      const cleanSlug = String(body.categorySlug).trim().toLowerCase();
+      let cleanSlug = String(body.categorySlug).trim().toLowerCase();
+
+      // Map common aliases
+      if (cleanSlug === 'ui/ux' || cleanSlug === 'uiux') cleanSlug = 'ui-ux';
+      if (cleanSlug === 'graphic' || cleanSlug === 'desain-grafis') cleanSlug = 'graphic-design';
+      if (cleanSlug === 'video' || cleanSlug === 'video-motion') cleanSlug = 'video-editor';
+      if (cleanSlug === '3d' || cleanSlug === '3d-visual') cleanSlug = '3d-modeling';
+
       const exists = categories.some((c) => c.slug.toLowerCase() === cleanSlug);
-      if (!exists) {
-        return NextResponse.json(
-          { success: false, error: `Kategori '${body.categorySlug}' tidak ditemukan.` },
-          { status: 400 }
-        );
+      if (!exists && categories.length > 0) {
+        cleanSlug = categories[0].slug;
       }
       body.categorySlug = cleanSlug;
     }

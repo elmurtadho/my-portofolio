@@ -5,6 +5,7 @@ export interface ProfileData {
   greeting: string;
   photoUrl: string;
   tagline: string;
+  status?: string;
 }
 
 export interface AboutData {
